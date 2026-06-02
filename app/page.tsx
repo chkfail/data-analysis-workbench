@@ -8,7 +8,7 @@ import { AppHeader } from "@/app/components/AppHeader";
 import { ModeButton } from "@/app/components/ModeButton";
 import { CollisionModule } from "@/app/modules/collision/CollisionModule";
 import { LatestModule } from "@/app/modules/latest/LatestModule";
-import { buildCollisionResult } from "@/app/lib/collision";
+import { buildCollisionResult, stripCollisionExportPrefix } from "@/app/lib/collision";
 import { buildLatestResult } from "@/app/lib/latest";
 import { downloadExcel, getColumns, parseWorkbook } from "@/app/lib/workbook";
 
@@ -130,7 +130,15 @@ export default function Home() {
               className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
               type="button"
               disabled={activeRows.length === 0}
-              onClick={() => downloadExcel(activeTool.exportFile, activeTool.exportSheet, activeColumns, activeRows)}
+              onClick={() =>
+                downloadExcel(
+                  activeTool.exportFile,
+                  activeTool.exportSheet,
+                  activeColumns,
+                  activeRows,
+                  toolMode === "collision" ? stripCollisionExportPrefix : undefined
+                )
+              }
               title="导出结果"
             >
               <Download size={18} />

@@ -13,6 +13,29 @@
 
 这是一个“数据研判工具集”网站，不是营销页。第一屏应直接是可操作工具台，避免大段说明、装饰性内容和无意义的 UI 占位。
 
+## 模块化结构
+
+MVP 阶段曾把大量逻辑写在 `app/page.tsx`，后续已拆成更适合继续扩展的模块化结构。新增功能时不要再把所有内容堆回 `page.tsx`。
+
+当前结构：
+
+- [app/page.tsx](app/page.tsx)：页面壳、全局状态编排、当前工具挂载、导出入口。
+- [app/config/tools.ts](app/config/tools.ts)：工具注册信息，如导航标题、页面标题、导出文件名和 sheet 名。
+- [app/types.ts](app/types.ts)：共享类型。
+- [app/lib/workbook.ts](app/lib/workbook.ts)：Excel/CSV 解析、字段工具、Excel 导出。
+- [app/lib/collision.ts](app/lib/collision.ts)：表格碰撞业务计算。
+- [app/lib/latest.ts](app/lib/latest.ts)：最新记录业务计算。
+- [app/components](app/components)：通用 UI 组件。
+- [app/modules/collision](app/modules/collision)：表格碰撞模块 UI。
+- [app/modules/latest](app/modules/latest)：最新记录模块 UI。
+
+新增模块建议流程：
+
+1. 在 `app/config/tools.ts` 注册工具名称、标题和导出信息。
+2. 在 `app/lib/<module>.ts` 放业务计算。
+3. 在 `app/modules/<module>` 放模块 UI。
+4. 在 `app/page.tsx` 只接入模块状态和挂载，不写大块 UI/算法。
+
 ## 已有功能
 
 ### 表格碰撞
@@ -27,6 +50,8 @@
 不要在界面上显示 `Left Join`、`Inner Join`、`待补全` 等旧文案。
 
 导出按钮文案为 `导出 Excel`，导出 `.xlsx`，不要导出 CSV。
+
+表格碰撞结果在前端表格展示时需要保留 `左表.` / `右表.` 前缀，用来区分同名字段。但导出 Excel 时，字段名不要出现 `左表.` 和 `右表.` 前缀。当前通过 `stripCollisionExportPrefix` 只在导出时清理列名，前端展示不变。
 
 ### 最新记录
 
@@ -48,12 +73,16 @@ ROW_NUMBER() OVER (PARTITION BY 基准字段 ORDER BY 时间字段 DESC) = 1
 ## UI/交互约定
 
 - 顶部工具切换包括 `表格碰撞` 和 `最新记录`。
+- 顶部导航是标准全宽 header：顶到页面最上方、左右撑满，不要做成浮动圆角卡片。
+- Header 左侧显示项目 icon 和 `数据研判工具集`，工具导航放在中间或偏左，不要挤到最右。
 - 表格碰撞下才显示 `补全模式` / `碰撞模式`。
 - 不要恢复“左表字段 ↔ 右表字段”这种顶部映射条，因为两张表卡片里已经分别选择了研判字段。
+- 标题卡片里不要再放 `数据研判工具集` 胶囊标签，因为 header 已经展示品牌。
 - 文件导入后，不再显示大面积导入框，只保留标题右侧的 `更换` 小按钮。
 - 统计信息不要做成占据大面积的四个卡片，应收在结果标题旁边。
 - 页面风格应偏工具型、清晰、低噪音。减少说明文字，优先让用户看到上传、字段选择、结果表格和导出。
 - 使用 Tailwind CSS 写样式，不要回退到大量手写 CSS。
+- 项目 icon 位于 [public/icon.svg](public/icon.svg)，同时作为 favicon 使用。
 
 ## 本地开发
 

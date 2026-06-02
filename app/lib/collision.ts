@@ -1,6 +1,10 @@
 import type { DataRow, JoinedRow, MatchMode } from "@/app/types";
 import { formatValue, normalizeKey } from "@/app/lib/workbook";
 
+export function stripCollisionExportPrefix(column: string) {
+  return column.replace(/^(左表|右表)\./, "");
+}
+
 export function buildCollisionResult({
   matchMode,
   leftRows,

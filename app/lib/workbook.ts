@@ -73,8 +73,18 @@ export function parseWorkbook(file: File): Promise<WorkbookState> {
   });
 }
 
-export function downloadExcel(filename: string, sheetName: string, columns: string[], rows: OutputRow[]) {
-  const sheet = XLSX.utils.json_to_sheet(rows.map((row) => row.data), { header: columns });
+export function downloadExcel(
+  filename: string,
+  sheetName: string,
+  columns: string[],
+  rows: OutputRow[],
+  columnLabel?: (column: string) => string
+) {
+  const exportRows = rows.map((row) =>
+    Object.fromEntries(columns.map((column) => [columnLabel ? columnLabel(column) : column, row.data[column] ?? ""]))
+  );
+  const exportColumns = columns.map((column) => (columnLabel ? columnLabel(column) : column));
+  const sheet = XLSX.utils.json_to_sheet(exportRows, { header: exportColumns });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   XLSX.writeFile(workbook, filename);
