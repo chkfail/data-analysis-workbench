@@ -1,20 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Download,
-  FileSpreadsheet,
-  Loader2,
-  Search,
-  Upload,
-  X
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Loader2, Search, Upload, X } from "lucide-react";
 
+type ToolMode = "collision" | "latest";
 type MatchMode = "complete" | "collision";
-type TableSide = "left" | "right";
+type TableSlot = "left" | "right" | "latest";
 type DataRow = Record<string, string | number | boolean | null>;
 
 type WorkbookState = {
@@ -23,10 +16,13 @@ type WorkbookState = {
   activeSheet: string;
 };
 
-type JoinedRow = {
+type OutputRow = {
   id: string;
-  status: "matched" | "left-only";
   data: Record<string, string>;
+};
+
+type JoinedRow = OutputRow & {
+  status: "matched" | "left-only";
 };
 
 const MAX_PREVIEW_ROWS = 250;
@@ -91,33 +87,47 @@ function formatValue(value: unknown) {
   return String(value);
 }
 
-function downloadExcel(filename: string, columns: string[], rows: JoinedRow[]) {
-  const sheet = XLSX.utils.json_to_sheet(
-    rows.map((row) => row.data),
-    {
-      header: columns
-    }
-  );
+function toTimestamp(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number") {
+    if (value > 25569 && value < 60000) return (value - 25569) * 86400 * 1000;
+    return value;
+  }
+
+  const text = String(value).trim();
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function downloadExcel(filename: string, sheetName: string, columns: string[], rows: OutputRow[]) {
+  const sheet = XLSX.utils.json_to_sheet(rows.map((row) => row.data), { header: columns });
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "碰撞结果");
+  XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   XLSX.writeFile(workbook, filename);
 }
 
 export default function Home() {
+  const [toolMode, setToolMode] = useState<ToolMode>("collision");
+  const [matchMode, setMatchMode] = useState<MatchMode>("complete");
   const [leftBook, setLeftBook] = useState<WorkbookState | null>(null);
   const [rightBook, setRightBook] = useState<WorkbookState | null>(null);
+  const [latestBook, setLatestBook] = useState<WorkbookState | null>(null);
   const [leftField, setLeftField] = useState("");
   const [rightField, setRightField] = useState("");
-  const [matchMode, setMatchMode] = useState<MatchMode>("complete");
-  const [loadingSide, setLoadingSide] = useState<TableSide | null>(null);
+  const [latestBaseField, setLatestBaseField] = useState("");
+  const [latestTimeField, setLatestTimeField] = useState("");
+  const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
 
   const leftRows = leftBook?.sheets[leftBook.activeSheet] ?? [];
   const rightRows = rightBook?.sheets[rightBook.activeSheet] ?? [];
+  const latestRows = latestBook?.sheets[latestBook.activeSheet] ?? [];
   const leftColumns = useMemo(() => getColumns(leftRows), [leftRows]);
   const rightColumns = useMemo(() => getColumns(rightRows), [rightRows]);
+  const latestColumns = useMemo(() => getColumns(latestRows), [latestRows]);
 
-  const result = useMemo(() => {
+  const collisionResult = useMemo(() => {
     if (!leftField || !rightField || leftRows.length === 0 || rightRows.length === 0) {
       return { rows: [] as JoinedRow[], columns: [] as string[], matched: 0, leftOnly: 0 };
     }
@@ -146,7 +156,7 @@ export default function Home() {
         leftOnly += 1;
         return [
           {
-              id: `${leftIndex}-empty`,
+            id: `${leftIndex}-empty`,
             status: "left-only",
             data: {
               状态: "未命中",
@@ -172,40 +182,97 @@ export default function Home() {
     return { rows, columns, matched, leftOnly };
   }, [matchMode, leftColumns, leftField, leftRows, rightColumns, rightField, rightRows]);
 
-  const previewRows = result.rows.slice(0, MAX_PREVIEW_ROWS);
-  const canJoin = Boolean(leftBook && rightBook && leftField && rightField);
+  const latestResult = useMemo(() => {
+    if (!latestBaseField || !latestTimeField || latestRows.length === 0) {
+      return { rows: [] as OutputRow[], columns: [] as string[], groups: 0, ignored: 0 };
+    }
 
-  async function handleFile(side: TableSide, file?: File) {
+    const latestByKey = new Map<string, { index: number; row: DataRow; timestamp: number | null }>();
+    let ignored = 0;
+
+    latestRows.forEach((row, index) => {
+      const key = formatValue(row[latestBaseField]).trim();
+      if (!key) {
+        ignored += 1;
+        return;
+      }
+
+      const timestamp = toTimestamp(row[latestTimeField]);
+      const current = latestByKey.get(key);
+      const currentScore = current?.timestamp ?? Number.NEGATIVE_INFINITY;
+      const nextScore = timestamp ?? Number.NEGATIVE_INFINITY;
+
+      if (!current || nextScore > currentScore || (nextScore === currentScore && index > current.index)) {
+        latestByKey.set(key, { index, row, timestamp });
+      }
+    });
+
+    const columns = ["基准字段值", "时间字段值", ...latestColumns];
+    const rows = Array.from(latestByKey.entries())
+      .sort(([, a], [, b]) => (b.timestamp ?? Number.NEGATIVE_INFINITY) - (a.timestamp ?? Number.NEGATIVE_INFINITY))
+      .map<OutputRow>(([key, item]) => ({
+        id: `${key}-${item.index}`,
+        data: {
+          基准字段值: key,
+          时间字段值: formatValue(item.row[latestTimeField]),
+          ...Object.fromEntries(latestColumns.map((column) => [column, formatValue(item.row[column])]))
+        }
+      }));
+
+    return { rows, columns, groups: rows.length, ignored };
+  }, [latestBaseField, latestColumns, latestRows, latestTimeField]);
+
+  const canJoin = Boolean(leftBook && rightBook && leftField && rightField);
+  const canPickLatest = Boolean(latestBook && latestBaseField && latestTimeField);
+  const collisionPreviewRows = collisionResult.rows.slice(0, MAX_PREVIEW_ROWS);
+  const latestPreviewRows = latestResult.rows.slice(0, MAX_PREVIEW_ROWS);
+  const activeRows = toolMode === "collision" ? collisionResult.rows : latestResult.rows;
+  const activeColumns = toolMode === "collision" ? collisionResult.columns : latestResult.columns;
+  const exportName = toolMode === "collision" ? "表格碰撞结果.xlsx" : "最新记录结果.xlsx";
+  const exportSheetName = toolMode === "collision" ? "碰撞结果" : "最新记录";
+
+  async function handleFile(slot: TableSlot, file?: File) {
     if (!file) return;
 
     setError("");
-    setLoadingSide(side);
+    setLoadingSlot(slot);
 
     try {
       const workbook = await parseWorkbook(file);
-      if (side === "left") {
+
+      if (slot === "left") {
         setLeftBook(workbook);
         setLeftField("");
-      } else {
+      } else if (slot === "right") {
         setRightBook(workbook);
         setRightField("");
+      } else {
+        setLatestBook(workbook);
+        setLatestBaseField("");
+        setLatestTimeField("");
       }
     } catch {
       setError("文件解析失败，请上传 .xlsx / .xls / .csv 文件。");
     } finally {
-      setLoadingSide(null);
+      setLoadingSlot(null);
     }
   }
 
-  function updateSheet(side: TableSide, sheet: string) {
-    if (side === "left" && leftBook) {
+  function updateSheet(slot: TableSlot, sheet: string) {
+    if (slot === "left" && leftBook) {
       setLeftBook({ ...leftBook, activeSheet: sheet });
       setLeftField("");
     }
 
-    if (side === "right" && rightBook) {
+    if (slot === "right" && rightBook) {
       setRightBook({ ...rightBook, activeSheet: sheet });
       setRightField("");
+    }
+
+    if (slot === "latest" && latestBook) {
+      setLatestBook({ ...latestBook, activeSheet: sheet });
+      setLatestBaseField("");
+      setLatestTimeField("");
     }
   }
 
@@ -219,20 +286,30 @@ export default function Home() {
                 <FileSpreadsheet size={14} />
                 数据研判工具集
               </div>
-              <h1 className="text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">表格碰撞研判台</h1>
+              <h1 className="text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
+                {toolMode === "collision" ? "表格碰撞研判台" : "最新记录研判台"}
+              </h1>
             </div>
 
-            <div className="grid grid-cols-2 rounded-2xl bg-slate-200/70 p-1">
-              <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全模式" />
-              <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="碰撞模式" />
+            <div className="grid gap-2">
+              <div className="grid grid-cols-2 rounded-2xl bg-slate-200/70 p-1">
+                <ModeButton active={toolMode === "collision"} onClick={() => setToolMode("collision")} title="表格碰撞" />
+                <ModeButton active={toolMode === "latest"} onClick={() => setToolMode("latest")} title="最新记录" />
+              </div>
+              {toolMode === "collision" ? (
+                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                  <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全模式" />
+                  <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="碰撞模式" />
+                </div>
+              ) : null}
             </div>
 
             <button
               className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
               type="button"
-              disabled={result.rows.length === 0}
-              onClick={() => downloadExcel("表格碰撞结果.xlsx", result.columns, result.rows)}
-              title="导出碰撞结果"
+              disabled={activeRows.length === 0}
+              onClick={() => downloadExcel(exportName, exportSheetName, activeColumns, activeRows)}
+              title="导出结果"
             >
               <Download size={18} />
               导出 Excel
@@ -250,88 +327,79 @@ export default function Home() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <DataPanel
-            side="left"
-            title="左表"
-            workbook={leftBook}
-            columns={leftColumns}
-            selectedField={leftField}
-            loading={loadingSide === "left"}
-            onFile={handleFile}
-            onField={setLeftField}
-            onSheet={updateSheet}
-          />
+        {toolMode === "collision" ? (
+          <>
+            <section className="grid gap-4 lg:grid-cols-2">
+              <DataPanel
+                slot="left"
+                title="左表"
+                workbook={leftBook}
+                columns={leftColumns}
+                selectedField={leftField}
+                loading={loadingSlot === "left"}
+                onFile={handleFile}
+                onField={setLeftField}
+                onSheet={updateSheet}
+              />
 
-          <DataPanel
-            side="right"
-            title="右表"
-            workbook={rightBook}
-            columns={rightColumns}
-            selectedField={rightField}
-            loading={loadingSide === "right"}
-            onFile={handleFile}
-            onField={setRightField}
-            onSheet={updateSheet}
-          />
-        </section>
+              <DataPanel
+                slot="right"
+                title="右表"
+                workbook={rightBook}
+                columns={rightColumns}
+                selectedField={rightField}
+                loading={loadingSlot === "right"}
+                onFile={handleFile}
+                onField={setRightField}
+                onSheet={updateSheet}
+              />
+            </section>
 
-        <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-panel">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-black text-field">结果</p>
-              <div className="mt-1 flex flex-wrap items-end gap-3">
-                <h2 className="text-xl font-black text-slate-950">{canJoin ? `${result.rows.length.toLocaleString("zh-CN")} 条` : "等待字段"}</h2>
-                <div className="flex flex-wrap gap-2 pb-0.5">
-                  <InlineMetric label="左表" value={leftRows.length} />
-                  <InlineMetric label="右表" value={rightRows.length} />
-                  <InlineMetric label="命中" value={result.matched} />
-                  <InlineMetric label="未命中" value={matchMode === "complete" ? result.leftOnly : 0} />
-                </div>
-              </div>
-            </div>
-            <div className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">
-              <Search size={15} />
-              预览 {MAX_PREVIEW_ROWS} 行
-            </div>
-          </div>
+            <ResultPanel
+              canShow={canJoin}
+              rows={collisionResult.rows}
+              columns={collisionResult.columns}
+              previewRows={collisionPreviewRows}
+              emptyText={canJoin ? "当前字段没有结果" : "导入左右表，选择字段"}
+              metrics={[
+                ["左表", leftRows.length],
+                ["右表", rightRows.length],
+                ["命中", collisionResult.matched],
+                ["未命中", matchMode === "complete" ? collisionResult.leftOnly : 0]
+              ]}
+              renderCell={(row, column) => (column === "状态" ? <StatusBadge status={(row as JoinedRow).status} /> : row.data[column])}
+            />
+          </>
+        ) : (
+          <>
+            <LatestPanel
+              workbook={latestBook}
+              columns={latestColumns}
+              baseField={latestBaseField}
+              timeField={latestTimeField}
+              loading={loadingSlot === "latest"}
+              onFile={handleFile}
+              onBaseField={setLatestBaseField}
+              onTimeField={setLatestTimeField}
+              onSheet={updateSheet}
+            />
 
-          {canJoin && result.rows.length > 0 ? (
-            <div className="max-h-[560px] overflow-auto">
-              <table className="min-w-[960px] border-collapse text-left text-sm">
-                <thead>
-                  <tr>
-                    {result.columns.map((column) => (
-                      <th key={column} className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-black text-slate-600">
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {previewRows.map((row) => (
-                    <tr key={row.id} className={row.status === "left-only" ? "bg-amber-50/50" : "hover:bg-teal-50/40"}>
-                      {result.columns.map((column) => (
-                        <td key={column} className="max-w-[260px] truncate px-4 py-3 text-slate-700">
-                          {column === "状态" ? <StatusBadge status={row.status} /> : row.data[column]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="grid min-h-[260px] place-items-center p-8">
-              <div className="grid justify-items-center gap-3 text-center">
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
-                  <FileSpreadsheet size={30} />
-                </div>
-                <p className="text-sm font-bold text-slate-500">{canJoin ? "当前字段没有结果" : "导入左右表，选择字段"}</p>
-              </div>
-            </div>
-          )}
-        </section>
+            <ResultPanel
+              canShow={canPickLatest}
+              rows={latestResult.rows}
+              columns={latestResult.columns}
+              previewRows={latestPreviewRows}
+              emptyText={canPickLatest ? "当前字段没有结果" : "导入表格，选择基准字段和时间字段"}
+              metrics={[
+                ["原始行数", latestRows.length],
+                ["基准数量", latestResult.groups],
+                ["最新记录", latestResult.rows.length],
+                ["空基准忽略", latestResult.ignored]
+              ]}
+              renderCell={(row, column) => row.data[column]}
+            />
+          </>
+        )}
       </div>
     </main>
   );
@@ -353,7 +421,7 @@ function ModeButton({ active, onClick, title }: { active: boolean; onClick: () =
 }
 
 function DataPanel({
-  side,
+  slot,
   title,
   workbook,
   columns,
@@ -363,15 +431,92 @@ function DataPanel({
   onField,
   onSheet
 }: {
-  side: TableSide;
+  slot: TableSlot;
   title: string;
   workbook: WorkbookState | null;
   columns: string[];
   selectedField: string;
   loading: boolean;
-  onFile: (side: TableSide, file?: File) => void;
+  onFile: (slot: TableSlot, file?: File) => void;
   onField: (field: string) => void;
-  onSheet: (side: TableSide, sheet: string) => void;
+  onSheet: (slot: TableSlot, sheet: string) => void;
+}) {
+  return (
+    <TableCard
+      slot={slot}
+      title={title}
+      workbook={workbook}
+      columns={columns}
+      loading={loading}
+      controlGridClass="sm:grid-cols-2"
+      onFile={onFile}
+      onSheet={onSheet}
+      controls={<FieldSelect label="研判字段" disabled={columns.length === 0} value={selectedField} onChange={onField} placeholder="选择字段" options={columns} />}
+    />
+  );
+}
+
+function LatestPanel({
+  workbook,
+  columns,
+  baseField,
+  timeField,
+  loading,
+  onFile,
+  onBaseField,
+  onTimeField,
+  onSheet
+}: {
+  workbook: WorkbookState | null;
+  columns: string[];
+  baseField: string;
+  timeField: string;
+  loading: boolean;
+  onFile: (slot: TableSlot, file?: File) => void;
+  onBaseField: (field: string) => void;
+  onTimeField: (field: string) => void;
+  onSheet: (slot: TableSlot, sheet: string) => void;
+}) {
+  return (
+    <TableCard
+      slot="latest"
+      title="数据表"
+      workbook={workbook}
+      columns={columns}
+      loading={loading}
+      controlGridClass="sm:grid-cols-3"
+      onFile={onFile}
+      onSheet={onSheet}
+      controls={
+        <>
+          <FieldSelect label="基准字段" disabled={columns.length === 0} value={baseField} onChange={onBaseField} placeholder="Partition By" options={columns} />
+          <FieldSelect label="时间字段" disabled={columns.length === 0} value={timeField} onChange={onTimeField} placeholder="Order By 时间" options={columns} />
+        </>
+      }
+    />
+  );
+}
+
+function TableCard({
+  slot,
+  title,
+  workbook,
+  columns,
+  loading,
+  controlGridClass,
+  controls,
+  onFile,
+  onSheet
+}: {
+  slot: TableSlot;
+  title: string;
+  workbook: WorkbookState | null;
+  columns: string[];
+  loading: boolean;
+  controlGridClass: string;
+  controls: ReactNode;
+  onFile: (slot: TableSlot, file?: File) => void;
+  onSheet: (slot: TableSlot, sheet: string) => void;
 }) {
   const rowCount = workbook ? workbook.sheets[workbook.activeSheet]?.length ?? 0 : 0;
   const columnPreview = columns.slice(0, 5);
@@ -389,7 +534,7 @@ function DataPanel({
             <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-field px-3 text-xs font-black text-white transition hover:bg-teal-700">
               <Upload size={13} />
               更换
-              <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile(side, event.target.files?.[0])} />
+              <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />
             </label>
           ) : null}
         </div>
@@ -400,21 +545,21 @@ function DataPanel({
           <label className="group flex min-h-24 cursor-pointer items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field">
             {loading ? <Loader2 className="animate-spin" size={22} /> : <Upload size={22} />}
             <span>{loading ? "解析中" : "导入 Excel / CSV"}</span>
-            <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile(side, event.target.files?.[0])} />
+            <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />
           </label>
         </div>
       ) : null}
 
-      <div className="grid gap-3 p-5 sm:grid-cols-2">
+      <div className={`grid gap-3 p-5 ${controlGridClass}`}>
         <FieldSelect
           label="工作表"
           disabled={!workbook}
           value={workbook?.activeSheet ?? ""}
-          onChange={(value) => onSheet(side, value)}
+          onChange={(value) => onSheet(slot, value)}
           placeholder="待导入"
           options={workbook ? Object.keys(workbook.sheets) : []}
         />
-        <FieldSelect label="研判字段" disabled={columns.length === 0} value={selectedField} onChange={onField} placeholder="选择字段" options={columns} />
+        {controls}
       </div>
 
       <div className="flex min-h-14 flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-4">
@@ -432,6 +577,82 @@ function DataPanel({
         )}
       </div>
     </article>
+  );
+}
+
+function ResultPanel({
+  canShow,
+  rows,
+  columns,
+  previewRows,
+  metrics,
+  emptyText,
+  renderCell
+}: {
+  canShow: boolean;
+  rows: OutputRow[];
+  columns: string[];
+  previewRows: OutputRow[];
+  metrics: Array<[string, number]>;
+  emptyText: string;
+  renderCell: (row: OutputRow, column: string) => ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-panel">
+      <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black text-field">结果</p>
+          <div className="mt-1 flex flex-wrap items-end gap-3">
+            <h2 className="text-xl font-black text-slate-950">{canShow ? `${rows.length.toLocaleString("zh-CN")} 条` : "等待字段"}</h2>
+            <div className="flex flex-wrap gap-2 pb-0.5">
+              {metrics.map(([label, value]) => (
+                <InlineMetric key={label} label={label} value={value} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">
+          <Search size={15} />
+          预览 {MAX_PREVIEW_ROWS} 行
+        </div>
+      </div>
+
+      {canShow && rows.length > 0 ? (
+        <div className="max-h-[560px] overflow-auto">
+          <table className="min-w-[960px] border-collapse text-left text-sm">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column} className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-black text-slate-600">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {previewRows.map((row) => (
+                <tr key={row.id} className="hover:bg-teal-50/40">
+                  {columns.map((column) => (
+                    <td key={column} className="max-w-[260px] truncate px-4 py-3 text-slate-700">
+                      {renderCell(row, column)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid min-h-[260px] place-items-center p-8">
+          <div className="grid justify-items-center gap-3 text-center">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+              <FileSpreadsheet size={30} />
+            </div>
+            <p className="text-sm font-bold text-slate-500">{emptyText}</p>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
