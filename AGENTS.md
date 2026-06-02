@@ -82,7 +82,7 @@ ROW_NUMBER() OVER (PARTITION BY 基准字段 ORDER BY 时间字段 DESC) = 1
 - 统计信息不要做成占据大面积的四个卡片，应收在结果标题旁边。
 - 页面风格应偏工具型、清晰、低噪音。减少说明文字，优先让用户看到上传、字段选择、结果表格和导出。
 - 使用 Tailwind CSS 写样式，不要回退到大量手写 CSS。
-- 项目 icon 位于 [public/icon.svg](public/icon.svg)，同时作为 favicon 使用。
+- 项目 icon 位于 [public/icon.svg](public/icon.svg)，同时作为 favicon 使用。图标应保持简洁，避免复杂插画。
 
 ## 本地开发
 
@@ -138,6 +138,12 @@ Next 配置开启了 standalone 输出：
 
 ```js
 output: "standalone"
+```
+
+Docker standalone 运行镜像必须拷贝 `public/` 目录，否则离线部署时 `/icon.svg` 等静态资源会 404。当前 Dockerfile 已包含：
+
+```dockerfile
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 ```
 
 ### deploy.sh 子命令
