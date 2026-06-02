@@ -1,0 +1,14 @@
+version: "2"
+
+services:
+  tools-web:
+    image: tools-web:offline
+    container_name: tools-web
+    restart: unless-stopped
+    ports:
+      - "${TOOLS_WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"

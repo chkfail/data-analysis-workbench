@@ -277,8 +277,21 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dff7f1_0,#f6f8fb_32%,#eef2f7_100%)] px-4 py-5 text-ink sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dff7f1_0,#f6f8fb_32%,#eef2f7_100%)] text-ink">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+        <div className="mx-auto grid max-w-7xl gap-3 px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:px-6 lg:px-8">
+          <div className="inline-flex items-center gap-2 text-sm font-black text-field">
+            <img className="h-7 w-7 rounded-lg shadow-sm" src="/icon.svg" alt="" />
+            数据研判工具集
+          </div>
+          <nav className="flex items-center gap-1 sm:justify-self-center" aria-label="工具导航">
+            <HeaderNavButton active={toolMode === "collision"} onClick={() => setToolMode("collision")} title="表格碰撞" />
+            <HeaderNavButton active={toolMode === "latest"} onClick={() => setToolMode("latest")} title="最新记录" />
+          </nav>
+        </div>
+      </header>
+
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
         <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-panel backdrop-blur">
           <div className="grid gap-5 p-5 md:grid-cols-[minmax(260px,1fr)_minmax(280px,420px)_auto] md:items-center md:p-6">
             <div>
@@ -291,18 +304,14 @@ export default function Home() {
               </h1>
             </div>
 
-            <div className="grid gap-2">
-              <div className="grid grid-cols-2 rounded-2xl bg-slate-200/70 p-1">
-                <ModeButton active={toolMode === "collision"} onClick={() => setToolMode("collision")} title="表格碰撞" />
-                <ModeButton active={toolMode === "latest"} onClick={() => setToolMode("latest")} title="最新记录" />
+            {toolMode === "collision" ? (
+              <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全模式" />
+                <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="碰撞模式" />
               </div>
-              {toolMode === "collision" ? (
-                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                  <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全模式" />
-                  <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="碰撞模式" />
-                </div>
-              ) : null}
-            </div>
+            ) : (
+              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">按基准字段取最新一条</div>
+            )}
 
             <button
               className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
@@ -411,6 +420,21 @@ function ModeButton({ active, onClick, title }: { active: boolean; onClick: () =
       className={[
         "h-11 rounded-xl text-sm font-black transition",
         active ? "bg-field text-white shadow-md shadow-teal-900/15" : "text-slate-600 hover:bg-white/70"
+      ].join(" ")}
+      type="button"
+      onClick={onClick}
+    >
+      {title}
+    </button>
+  );
+}
+
+function HeaderNavButton({ active, onClick, title }: { active: boolean; onClick: () => void; title: string }) {
+  return (
+    <button
+      className={[
+        "h-10 px-4 text-sm font-black transition",
+        active ? "border-b-2 border-field text-field" : "border-b-2 border-transparent text-slate-500 hover:text-slate-950"
       ].join(" ")}
       type="button"
       onClick={onClick}
