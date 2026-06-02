@@ -207,16 +207,12 @@ export default function Home() {
       }
     });
 
-    const columns = ["基准字段值", "时间字段值", ...latestColumns];
+    const columns = latestColumns;
     const rows = Array.from(latestByKey.entries())
       .sort(([, a], [, b]) => (b.timestamp ?? Number.NEGATIVE_INFINITY) - (a.timestamp ?? Number.NEGATIVE_INFINITY))
-      .map<OutputRow>(([key, item]) => ({
-        id: `${key}-${item.index}`,
-        data: {
-          基准字段值: key,
-          时间字段值: formatValue(item.row[latestTimeField]),
-          ...Object.fromEntries(latestColumns.map((column) => [column, formatValue(item.row[column])]))
-        }
+      .map<OutputRow>(([, item]) => ({
+        id: `latest-${item.index}`,
+        data: Object.fromEntries(latestColumns.map((column) => [column, formatValue(item.row[column])]))
       }));
 
     return { rows, columns, groups: rows.length, ignored };
@@ -295,10 +291,6 @@ export default function Home() {
         <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-panel backdrop-blur">
           <div className="grid gap-5 p-5 md:grid-cols-[minmax(260px,1fr)_minmax(280px,420px)_auto] md:items-center md:p-6">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-field ring-1 ring-teal-100">
-                <FileSpreadsheet size={14} />
-                数据研判工具集
-              </div>
               <h1 className="text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
                 {toolMode === "collision" ? "表格碰撞研判台" : "最新记录研判台"}
               </h1>
@@ -513,8 +505,8 @@ function LatestPanel({
       onSheet={onSheet}
       controls={
         <>
-          <FieldSelect label="基准字段" disabled={columns.length === 0} value={baseField} onChange={onBaseField} placeholder="Partition By" options={columns} />
-          <FieldSelect label="时间字段" disabled={columns.length === 0} value={timeField} onChange={onTimeField} placeholder="Order By 时间" options={columns} />
+          <FieldSelect label="基准字段" disabled={columns.length === 0} value={baseField} onChange={onBaseField} placeholder="选择基准字段" options={columns} />
+          <FieldSelect label="时间字段" disabled={columns.length === 0} value={timeField} onChange={onTimeField} placeholder="时间字段排序" options={columns} />
         </>
       }
     />
