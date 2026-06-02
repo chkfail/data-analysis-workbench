@@ -58,7 +58,7 @@ export function LatestModule({
         metrics={[
           ["原始行数", sourceRowsCount],
           ["基准数量", result.groups],
-          ["最新记录", result.rows.length],
+          ["取最新行", result.rows.length],
           ["空基准忽略", result.ignored]
         ]}
         renderCell={(row, column) => row.data[column]}

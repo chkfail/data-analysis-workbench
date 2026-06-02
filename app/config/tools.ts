@@ -10,15 +10,15 @@ export const TOOL_DEFINITIONS: Record<
   }
 > = {
   collision: {
-    title: "表格碰撞",
-    heading: "表格碰撞研判台",
-    exportFile: "表格碰撞结果.xlsx",
+    title: "两表碰撞",
+    heading: "两表碰撞研判台",
+    exportFile: "两表碰撞结果.xlsx",
     exportSheet: "碰撞结果"
   },
   latest: {
-    title: "最新记录",
-    heading: "最新记录研判台",
-    exportFile: "最新记录结果.xlsx",
-    exportSheet: "最新记录"
+    title: "取最新行",
+    heading: "取最新行研判台",
+    exportFile: "取最新行结果.xlsx",
+    exportSheet: "取最新行"
   }
 };
