@@ -14,8 +14,13 @@ import { downloadExcel, getColumns, parseWorkbook } from "@/app/lib/workbook";
 
 const initialCollisionTables: CollisionTableState[] = [
   { id: "collision-1", title: "基准表", workbook: null, field: "" },
-  { id: "collision-2", title: "表2", workbook: null, field: "" }
+  { id: "collision-2", title: "参与表 A", workbook: null, field: "" }
 ];
+
+function getCollisionTableTitle(index: number) {
+  if (index === 0) return "基准表";
+  return `参与表 ${String.fromCharCode(64 + index)}`;
+}
 
 export default function Home() {
   const [toolMode, setToolMode] = useState<ToolMode>("collision");
@@ -109,14 +114,14 @@ export default function Home() {
   function addCollisionTable() {
     setCollisionTables((tables) => {
       const nextIndex = tables.length + 1;
-      return [...tables, { id: `collision-${Date.now()}`, title: `表${nextIndex}`, workbook: null, field: "" }];
+      return [...tables, { id: `collision-${Date.now()}`, title: getCollisionTableTitle(nextIndex - 1), workbook: null, field: "" }];
     });
   }
 
   function removeCollisionTable(slot: TableSlot) {
     setCollisionTables((tables) => {
       if (tables.length <= 2) return tables;
-      return tables.filter((table) => table.id !== slot).map((table, index) => ({ ...table, title: index === 0 ? "基准表" : `表${index + 1}` }));
+      return tables.filter((table) => table.id !== slot).map((table, index) => ({ ...table, title: getCollisionTableTitle(index) }));
     });
   }
 

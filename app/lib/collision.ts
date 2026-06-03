@@ -2,7 +2,7 @@ import type { CollisionTableRuntime, DataRow, JoinedRow, MatchMode } from "@/app
 import { formatValue, normalizeKey } from "@/app/lib/workbook";
 
 export function stripCollisionExportPrefix(column: string) {
-  return column.replace(/^(左表|右表|基准表|表\d+)\./, "");
+  return column.replace(/^(左表|右表|基准表|表\d+|参与表 [A-Z]+)\./, "");
 }
 
 export function buildCollisionResult({ matchMode, tables }: { matchMode: MatchMode; tables: CollisionTableRuntime[] }) {

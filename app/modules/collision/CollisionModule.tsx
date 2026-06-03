@@ -33,7 +33,7 @@ export function CollisionModule({
     <>
       <section className="flex gap-4 overflow-x-auto pb-2 [scrollbar-gutter:stable]">
         {tables.map((table, index) => (
-          <div key={table.id} className="relative w-[560px] max-w-[calc(100vw-2rem)] shrink-0">
+          <div key={table.id} className="relative w-[min(82vw,560px)] shrink-0 lg:w-[calc(42.857%_-_0.857rem)] lg:min-w-[480px]">
             {index >= 2 ? (
               <button
                 className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
@@ -68,12 +68,14 @@ export function CollisionModule({
         ))}
 
         <button
-          className="grid min-h-[260px] w-[560px] max-w-[calc(100vw-2rem)] shrink-0 place-items-center rounded-[28px] border border-dashed border-slate-300 bg-white/60 text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field"
+          className="grid min-h-[260px] w-[min(42vw,190px)] shrink-0 place-items-center rounded-[28px] border border-dashed border-slate-300 bg-slate-100/70 text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field lg:w-[calc(14.286%_-_0.286rem)] lg:min-w-[150px]"
           type="button"
           onClick={onAddTable}
+          aria-label="添加表"
+          title="添加表"
         >
-          <span className="inline-flex items-center gap-2 text-sm font-black">
-            <Plus size={20} />
+          <span className="inline-flex flex-col items-center gap-2 text-sm font-black">
+            <Plus size={24} />
             添加表
           </span>
         </button>
