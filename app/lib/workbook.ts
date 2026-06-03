@@ -80,11 +80,9 @@ export function downloadExcel(
   rows: OutputRow[],
   columnLabel?: (column: string) => string
 ) {
-  const exportRows = rows.map((row) =>
-    Object.fromEntries(columns.map((column) => [columnLabel ? columnLabel(column) : column, row.data[column] ?? ""]))
-  );
   const exportColumns = columns.map((column) => (columnLabel ? columnLabel(column) : column));
-  const sheet = XLSX.utils.json_to_sheet(exportRows, { header: exportColumns });
+  const exportRows = rows.map((row) => columns.map((column) => row.data[column] ?? ""));
+  const sheet = XLSX.utils.aoa_to_sheet([exportColumns, ...exportRows]);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   XLSX.writeFile(workbook, filename);
