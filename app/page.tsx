@@ -316,15 +316,15 @@ export default function Home() {
                 />
               </div>
             ) : toolMode === "extract" ? (
-              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
+              <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
                 按正则表达式提取字段
               </div>
             ) : toolMode === "dedup" ? (
-              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
+              <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
                 按相似度算法发现重复行
               </div>
             ) : (
-              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">
+              <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
                 按基准字段取最新一条
               </div>
             )}
