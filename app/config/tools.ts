@@ -10,9 +10,9 @@ export const TOOL_DEFINITIONS: Record<
   }
 > = {
   collision: {
-    title: "两表碰撞",
-    heading: "两表碰撞研判台",
-    exportFile: "两表碰撞结果.xlsx",
+    title: "多表碰撞",
+    heading: "多表碰撞研判台",
+    exportFile: "多表碰撞结果.xlsx",
     exportSheet: "碰撞结果"
   },
   latest: {

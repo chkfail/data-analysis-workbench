@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, Download, FileSpreadsheet, X } from "lucide-react";
-import type { MatchMode, TableSlot, ToolMode, WorkbookState } from "@/app/types";
+import { AlertCircle, Download, X } from "lucide-react";
+import type { CollisionTableState, MatchMode, TableSlot, ToolMode, WorkbookState } from "@/app/types";
 import { TOOL_DEFINITIONS } from "@/app/config/tools";
 import { AppHeader } from "@/app/components/AppHeader";
 import { ModeButton } from "@/app/components/ModeButton";
@@ -12,38 +12,43 @@ import { buildCollisionResult, stripCollisionExportPrefix } from "@/app/lib/coll
 import { buildLatestResult } from "@/app/lib/latest";
 import { downloadExcel, getColumns, parseWorkbook } from "@/app/lib/workbook";
 
+const initialCollisionTables: CollisionTableState[] = [
+  { id: "collision-1", title: "基准表", workbook: null, field: "" },
+  { id: "collision-2", title: "表2", workbook: null, field: "" }
+];
+
 export default function Home() {
   const [toolMode, setToolMode] = useState<ToolMode>("collision");
   const [matchMode, setMatchMode] = useState<MatchMode>("complete");
-  const [leftBook, setLeftBook] = useState<WorkbookState | null>(null);
-  const [rightBook, setRightBook] = useState<WorkbookState | null>(null);
+  const [collisionTables, setCollisionTables] = useState<CollisionTableState[]>(initialCollisionTables);
   const [latestBook, setLatestBook] = useState<WorkbookState | null>(null);
-  const [leftField, setLeftField] = useState("");
-  const [rightField, setRightField] = useState("");
   const [latestBaseField, setLatestBaseField] = useState("");
   const [latestTimeField, setLatestTimeField] = useState("");
   const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
 
-  const leftRows = leftBook?.sheets[leftBook.activeSheet] ?? [];
-  const rightRows = rightBook?.sheets[rightBook.activeSheet] ?? [];
   const latestRows = latestBook?.sheets[latestBook.activeSheet] ?? [];
-  const leftColumns = useMemo(() => getColumns(leftRows), [leftRows]);
-  const rightColumns = useMemo(() => getColumns(rightRows), [rightRows]);
   const latestColumns = useMemo(() => getColumns(latestRows), [latestRows]);
+  const collisionRuntimeTables = useMemo(
+    () =>
+      collisionTables.map((table) => {
+        const rows = table.workbook?.sheets[table.workbook.activeSheet] ?? [];
+        return {
+          ...table,
+          rows,
+          columns: getColumns(rows)
+        };
+      }),
+    [collisionTables]
+  );
 
   const collisionResult = useMemo(
     () =>
       buildCollisionResult({
         matchMode,
-        leftRows,
-        rightRows,
-        leftColumns,
-        rightColumns,
-        leftField,
-        rightField
+        tables: collisionRuntimeTables
       }),
-    [matchMode, leftColumns, leftField, leftRows, rightColumns, rightField, rightRows]
+    [matchMode, collisionRuntimeTables]
   );
 
   const latestResult = useMemo(
@@ -70,16 +75,12 @@ export default function Home() {
     try {
       const workbook = await parseWorkbook(file);
 
-      if (slot === "left") {
-        setLeftBook(workbook);
-        setLeftField("");
-      } else if (slot === "right") {
-        setRightBook(workbook);
-        setRightField("");
-      } else {
+      if (slot === "latest") {
         setLatestBook(workbook);
         setLatestBaseField("");
         setLatestTimeField("");
+      } else {
+        setCollisionTables((tables) => tables.map((table) => (table.id === slot ? { ...table, workbook, field: "" } : table)));
       }
     } catch {
       setError("文件解析失败，请上传 .xlsx / .xls / .csv 文件。");
@@ -89,21 +90,34 @@ export default function Home() {
   }
 
   function updateSheet(slot: TableSlot, sheet: string) {
-    if (slot === "left" && leftBook) {
-      setLeftBook({ ...leftBook, activeSheet: sheet });
-      setLeftField("");
-    }
-
-    if (slot === "right" && rightBook) {
-      setRightBook({ ...rightBook, activeSheet: sheet });
-      setRightField("");
-    }
-
     if (slot === "latest" && latestBook) {
       setLatestBook({ ...latestBook, activeSheet: sheet });
       setLatestBaseField("");
       setLatestTimeField("");
+      return;
     }
+
+    setCollisionTables((tables) =>
+      tables.map((table) => (table.id === slot && table.workbook ? { ...table, workbook: { ...table.workbook, activeSheet: sheet }, field: "" } : table))
+    );
+  }
+
+  function updateCollisionField(slot: TableSlot, field: string) {
+    setCollisionTables((tables) => tables.map((table) => (table.id === slot ? { ...table, field } : table)));
+  }
+
+  function addCollisionTable() {
+    setCollisionTables((tables) => {
+      const nextIndex = tables.length + 1;
+      return [...tables, { id: `collision-${Date.now()}`, title: `表${nextIndex}`, workbook: null, field: "" }];
+    });
+  }
+
+  function removeCollisionTable(slot: TableSlot) {
+    setCollisionTables((tables) => {
+      if (tables.length <= 2) return tables;
+      return tables.filter((table) => table.id !== slot).map((table, index) => ({ ...table, title: index === 0 ? "基准表" : `表${index + 1}` }));
+    });
   }
 
   return (
@@ -119,7 +133,7 @@ export default function Home() {
 
             {toolMode === "collision" ? (
               <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全左表" />
+                <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全基准表" />
                 <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="只取交集" />
               </div>
             ) : (
@@ -159,21 +173,15 @@ export default function Home() {
 
         {toolMode === "collision" ? (
           <CollisionModule
-            leftBook={leftBook}
-            rightBook={rightBook}
-            leftColumns={leftColumns}
-            rightColumns={rightColumns}
-            leftRowsCount={leftRows.length}
-            rightRowsCount={rightRows.length}
-            leftField={leftField}
-            rightField={rightField}
+            tables={collisionRuntimeTables}
             loadingSlot={loadingSlot}
             result={collisionResult}
             matchMode={matchMode}
             onFile={handleFile}
             onSheet={updateSheet}
-            onLeftField={setLeftField}
-            onRightField={setRightField}
+            onField={updateCollisionField}
+            onAddTable={addCollisionTable}
+            onRemoveTable={removeCollisionTable}
           />
         ) : (
           <LatestModule
