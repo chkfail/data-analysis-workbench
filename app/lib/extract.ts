@@ -14,17 +14,17 @@ export const EXTRACT_TEMPLATES: Record<
   mobile: {
     title: "手机号",
     outputColumn: "提取手机号",
-    pattern: "(1[3-9]\\d{9})"
+    pattern: "(?<!\\d)(1[3-9]\\d{9})(?!\\d)"
   },
   "id-card": {
     title: "身份证号",
     outputColumn: "提取身份证号",
-    pattern: "(\\d{17}[\\dXx]|\\d{15})"
+    pattern: "(?<!\\d)\\d{17}[\\dXx](?!\\d)"
   },
   "bank-card": {
     title: "银行卡号",
     outputColumn: "提取银行卡号",
-    pattern: "((?:\\d[ -]?){13,19})"
+    pattern: "(?<!\\d)(?:\\d[ -]?){13,19}(?!\\d)"
   },
   email: {
     title: "邮箱",
@@ -39,7 +39,7 @@ export const EXTRACT_TEMPLATES: Record<
   alipay: {
     title: "支付宝",
     outputColumn: "提取支付宝",
-    pattern: "(2088\\d{16})"
+    pattern: "(?<!\\d)(2088\\d{16})(?!\\d)"
   }
 };
 
@@ -119,7 +119,14 @@ function getExtractConfig(template: ExtractTemplateId, customPattern: string) {
     return {
       regex: new RegExp(preset.pattern, "g"),
       outputColumn: preset.outputColumn,
-      exclude: template === "email" ? (value: string) => /@wx\.tenpay\.com$/i.test(value) : template === "bank-card" ? (value: string) => /^2088\d{16}$/.test(value) : undefined,
+      validate:
+        template === "id-card"
+          ? isValidIdCard
+          : template === "bank-card"
+            ? isValidBankCard
+            : template === "email"
+              ? (value: string) => !/@wx\.tenpay\.com$/i.test(value)
+              : undefined,
       error: ""
     };
   }
@@ -174,7 +181,7 @@ function buildNumberedColumns(column: string, count: number) {
   return Array.from({ length: count }, (_, index) => `${column}${index + 1}`);
 }
 
-function readAllMatches(value: string, config: { regex: RegExp; outputColumn: string; exclude?: (value: string) => boolean }) {
+function readAllMatches(value: string, config: { regex: RegExp; outputColumn: string; validate?: (value: string) => boolean }) {
   const matches: string[] = [];
   config.regex.lastIndex = 0;
 
@@ -182,9 +189,59 @@ function readAllMatches(value: string, config: { regex: RegExp; outputColumn: st
   while ((match = config.regex.exec(value))) {
     const captured = match.groups?.[config.outputColumn] ?? match[1] ?? match[0];
     const formatted = formatValue(captured);
-    if (formatted && !config.exclude?.(formatted)) matches.push(formatted);
+    if (formatted && (config.validate ? config.validate(formatted) : true)) matches.push(formatted);
     if (match[0] === "") config.regex.lastIndex += 1;
   }
 
   return matches;
+}
+
+function isValidIdCard(value: string) {
+  const id = value.trim().toUpperCase();
+  if (!/^\d{17}[\dX]$/.test(id)) return false;
+
+  const birth = id.slice(6, 14);
+  if (!isValidDateCode(birth)) return false;
+
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+  const checkCodes = ["1", "0", "X", "9", "8", "7", "6", "5", "4", "3", "2"];
+  const sum = weights.reduce((total, weight, index) => total + Number(id[index]) * weight, 0);
+  return checkCodes[sum % 11] === id[17];
+}
+
+function isValidDateCode(value: string) {
+  if (!/^\d{8}$/.test(value)) return false;
+
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(4, 6));
+  const day = Number(value.slice(6, 8));
+  if (year < 1900 || year > new Date().getFullYear()) return false;
+
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function isValidBankCard(value: string) {
+  const card = value.replace(/[\s-]/g, "");
+  if (!/^\d{13,19}$/.test(card)) return false;
+  if (/^2088\d{16}$/.test(card)) return false;
+  if (isValidIdCard(card)) return false;
+  return passesLuhn(card);
+}
+
+function passesLuhn(value: string) {
+  let sum = 0;
+  let shouldDouble = false;
+
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    let digit = Number(value[index]);
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
 }
