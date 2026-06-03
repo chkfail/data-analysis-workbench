@@ -64,7 +64,7 @@ export function CollisionModule({
               }
               controls={
                 <FieldSelect
-                  label="研判字段"
+                  label="碰撞字段"
                   disabled={table.columns.length === 0}
                   value={table.field}
                   onChange={(field) => onField(table.id, field)}
@@ -95,7 +95,7 @@ export function CollisionModule({
         rows={result.rows}
         columns={result.columns}
         previewRows={result.rows.slice(0, MAX_PREVIEW_ROWS)}
-        emptyText={canJoin ? "当前字段没有结果" : "至少导入两张表，并为每张表选择研判字段"}
+        emptyText={canJoin ? "当前字段没有结果" : "至少导入两张表，并为每张表选择碰撞字段"}
         metrics={[...tableMetrics, ...resultMetrics]}
         metricRows={[tableMetrics, resultMetrics]}
         note="已按整行去重"

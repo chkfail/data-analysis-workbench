@@ -7,8 +7,10 @@ import { TOOL_DEFINITIONS } from "@/app/config/tools";
 import { AppHeader } from "@/app/components/AppHeader";
 import { ModeButton } from "@/app/components/ModeButton";
 import { CollisionModule } from "@/app/modules/collision/CollisionModule";
+import { ExtractModule } from "@/app/modules/extract/ExtractModule";
 import { LatestModule } from "@/app/modules/latest/LatestModule";
 import { buildCollisionResult, stripCollisionExportPrefix } from "@/app/lib/collision";
+import { buildExtractResult, type ExtractTemplateId } from "@/app/lib/extract";
 import { buildLatestResult } from "@/app/lib/latest";
 import { downloadExcel, getColumns, parseWorkbook } from "@/app/lib/workbook";
 
@@ -29,11 +31,17 @@ export default function Home() {
   const [latestBook, setLatestBook] = useState<WorkbookState | null>(null);
   const [latestBaseField, setLatestBaseField] = useState("");
   const [latestTimeField, setLatestTimeField] = useState("");
+  const [extractBook, setExtractBook] = useState<WorkbookState | null>(null);
+  const [extractSourceFields, setExtractSourceFields] = useState<string[]>([]);
+  const [extractTemplates, setExtractTemplates] = useState<ExtractTemplateId[]>(["mobile"]);
+  const [extractCustomPattern, setExtractCustomPattern] = useState("");
   const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
 
   const latestRows = latestBook?.sheets[latestBook.activeSheet] ?? [];
   const latestColumns = useMemo(() => getColumns(latestRows), [latestRows]);
+  const extractRows = extractBook?.sheets[extractBook.activeSheet] ?? [];
+  const extractColumns = useMemo(() => getColumns(extractRows), [extractRows]);
   const collisionRuntimeTables = useMemo(
     () =>
       collisionTables.map((table) => {
@@ -66,10 +74,21 @@ export default function Home() {
       }),
     [latestBaseField, latestColumns, latestRows, latestTimeField]
   );
+  const extractResult = useMemo(
+    () =>
+      buildExtractResult({
+        rows: extractRows,
+        columns: extractColumns,
+        sourceFields: extractSourceFields,
+        templates: extractTemplates,
+        customPattern: extractCustomPattern
+      }),
+    [extractColumns, extractCustomPattern, extractRows, extractSourceFields, extractTemplates]
+  );
 
   const activeTool = TOOL_DEFINITIONS[toolMode];
-  const activeRows = toolMode === "collision" ? collisionResult.rows : latestResult.rows;
-  const activeColumns = toolMode === "collision" ? collisionResult.columns : latestResult.columns;
+  const activeRows = toolMode === "collision" ? collisionResult.rows : toolMode === "latest" ? latestResult.rows : extractResult.rows;
+  const activeColumns = toolMode === "collision" ? collisionResult.columns : toolMode === "latest" ? latestResult.columns : extractResult.columns;
 
   async function handleFile(slot: TableSlot, file?: File) {
     if (!file) return;
@@ -84,6 +103,9 @@ export default function Home() {
         setLatestBook(workbook);
         setLatestBaseField("");
         setLatestTimeField("");
+      } else if (slot === "extract") {
+        setExtractBook(workbook);
+        setExtractSourceFields([]);
       } else {
         setCollisionTables((tables) => tables.map((table) => (table.id === slot ? { ...table, workbook, field: "" } : table)));
       }
@@ -99,6 +121,12 @@ export default function Home() {
       setLatestBook({ ...latestBook, activeSheet: sheet });
       setLatestBaseField("");
       setLatestTimeField("");
+      return;
+    }
+
+    if (slot === "extract" && extractBook) {
+      setExtractBook({ ...extractBook, activeSheet: sheet });
+      setExtractSourceFields([]);
       return;
     }
 
@@ -135,6 +163,14 @@ export default function Home() {
     );
   }
 
+  function toggleExtractTemplate(template: ExtractTemplateId) {
+    setExtractTemplates((templates) => (templates.includes(template) ? templates.filter((item) => item !== template) : [...templates, template]));
+  }
+
+  function toggleExtractSourceField(field: string) {
+    setExtractSourceFields((fields) => (fields.includes(field) ? fields.filter((item) => item !== field) : [...fields, field]));
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dff7f1_0,#f6f8fb_32%,#eef2f7_100%)] text-ink">
       <AppHeader activeTool={toolMode} onToolChange={setToolMode} />
@@ -151,6 +187,8 @@ export default function Home() {
                 <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全基准表" />
                 <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="只取交集" />
               </div>
+            ) : toolMode === "extract" ? (
+              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">按正则表达式提取字段</div>
             ) : (
               <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">按基准字段取最新一条</div>
             )}
@@ -180,7 +218,7 @@ export default function Home() {
             onRemoveTable={removeCollisionTable}
             onExport={handleExport}
           />
-        ) : (
+        ) : toolMode === "latest" ? (
           <LatestModule
             workbook={latestBook}
             columns={latestColumns}
@@ -193,6 +231,23 @@ export default function Home() {
             onSheet={updateSheet}
             onBaseField={setLatestBaseField}
             onTimeField={setLatestTimeField}
+            onExport={handleExport}
+          />
+        ) : (
+          <ExtractModule
+            workbook={extractBook}
+            columns={extractColumns}
+            sourceRowsCount={extractRows.length}
+            sourceFields={extractSourceFields}
+            templates={extractTemplates}
+            customPattern={extractCustomPattern}
+            loadingSlot={loadingSlot}
+            result={extractResult}
+            onFile={handleFile}
+            onSheet={updateSheet}
+            onSourceField={toggleExtractSourceField}
+            onTemplate={toggleExtractTemplate}
+            onCustomPattern={setExtractCustomPattern}
             onExport={handleExport}
           />
         )}

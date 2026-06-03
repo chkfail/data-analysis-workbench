@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "数据研判工具集",
+  title: "数据研判工具箱",
   description: "面向数据研判工作的多表碰撞与字段比对工具",
   icons: {
     icon: "/icon.svg",

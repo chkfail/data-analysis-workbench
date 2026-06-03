@@ -20,5 +20,11 @@ export const TOOL_DEFINITIONS: Record<
     heading: "取最新行研判台",
     exportFile: "取最新行结果.xlsx",
     exportSheet: "取最新行"
+  },
+  extract: {
+    title: "智能提取",
+    heading: "智能提取研判台",
+    exportFile: "智能提取结果.xlsx",
+    exportSheet: "提取结果"
   }
 };

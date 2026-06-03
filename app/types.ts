@@ -1,6 +1,6 @@
-export type ToolMode = "collision" | "latest";
+export type ToolMode = "collision" | "latest" | "extract";
 export type MatchMode = "complete" | "collision";
-export type TableSlot = "latest" | `collision-${string}`;
+export type TableSlot = "latest" | "extract" | `collision-${string}`;
 export type DataRow = Record<string, string | number | boolean | null>;
 
 export type WorkbookState = {

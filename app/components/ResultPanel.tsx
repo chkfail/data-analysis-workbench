@@ -31,14 +31,14 @@ export function ResultPanel({
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-panel">
-      <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="grid gap-3 border-b border-slate-100 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="min-w-0">
           <p className="text-xs font-black text-field">结果</p>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
+          <div className="mt-1 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
             <h2 className="text-xl font-black text-slate-950">{canShow ? `${rows.length.toLocaleString("zh-CN")} 条` : "等待字段"}</h2>
-            <div className="flex min-w-0 flex-col gap-2 pb-0.5">
+            <div className="flex min-w-0 flex-col gap-2 overflow-hidden pb-0.5">
               {visibleMetricRows.map((metricRow, index) => (
-                <div key={index} className="flex flex-wrap gap-2">
+                <div key={index} className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
                   {metricRow.map(([label, value, unit]) => (
                     <InlineMetric key={label} label={label} value={value} unit={unit} />
                   ))}
@@ -107,7 +107,7 @@ export function ResultPanel({
 
 function InlineMetric({ label, value, unit }: { label: string; value: number; unit?: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
       {label}
       <span>
         <strong className="text-slate-950">{value.toLocaleString("zh-CN")}</strong>

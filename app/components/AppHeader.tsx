@@ -8,7 +8,7 @@ export function AppHeader({ activeTool, onToolChange }: { activeTool: ToolMode; 
       <div className="mx-auto grid max-w-7xl gap-3 px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:px-6 lg:px-8">
         <div className="inline-flex items-center gap-2 text-sm font-black text-field">
           <img className="h-7 w-7 rounded-lg shadow-sm" src="/icon.svg" alt="" />
-          数据研判工具集
+          数据研判工具箱
         </div>
         <nav className="flex items-center gap-1 sm:justify-self-center" aria-label="工具导航">
           {(Object.keys(TOOL_DEFINITIONS) as ToolMode[]).map((tool) => (
