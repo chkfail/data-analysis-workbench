@@ -10,6 +10,7 @@
 - 当前页面入口：[app/page.tsx](app/page.tsx)
 - 全局样式入口：[app/globals.css](app/globals.css)
 - Tailwind 配置：[tailwind.config.ts](tailwind.config.ts)
+- 终端使用："C:\Program Files\Git\bin\bash.exe"
 
 这是一个“数据研判工具集”网站，不是营销页。第一屏应直接是可操作工具台，避免大段说明、装饰性内容和无意义的 UI 占位。
 
@@ -154,9 +155,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 ### deploy.sh 子命令
 
 ```sh
-sh deploy.sh pack
-sh deploy.sh start
-sh deploy.sh stop
+deploy.sh pack
+deploy.sh start
+deploy.sh stop
 ```
 
 含义：
@@ -168,7 +169,7 @@ sh deploy.sh stop
 端口默认是宿主机 `3000` 映射容器 `3000`。可通过环境变量覆盖：
 
 ```sh
-DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start
+DATA_ANALYSIS_WORKBENCH_PORT=8080 deploy.sh start
 ```
 
 ### 离线部署流程
@@ -176,14 +177,14 @@ DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start
 在有 Docker 和网络的打包机执行：
 
 ```sh
-sh deploy.sh pack
+deploy.sh pack
 ```
 
 把 `dist/*.tar.gz` 上传到离线 Linux 服务器，然后：
 
 ```sh
 tar -xzf data-analysis-workbench-offline-*.tar.gz
-sh deploy.sh start
+deploy.sh start
 ```
 
 服务器无需 npm、无需联网。
@@ -196,7 +197,7 @@ sh deploy.sh start
 - 临时容器映射到 `3100:3000` 后，访问 `http://localhost:3100` 返回 200。
 - 已生成过离线包：`dist/data-analysis-workbench-offline-manual.tar.gz`。
 
-注意：当前 Windows/WSL 环境没有启用 Docker Desktop 的 WSL integration，导致 `bash deploy.sh pack` 无法直接调用 Docker。Linux 打包机或目标 Linux 服务器不受此问题影响。
+注意：当前 Windows/WSL 环境没有启用 Docker Desktop 的 WSL integration，导致 `badeploy.sh pack` 无法直接调用 Docker。Linux 打包机或目标 Linux 服务器不受此问题影响。
 
 ## Git/远端
 
