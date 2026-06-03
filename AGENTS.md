@@ -1,96 +1,75 @@
 # AGENTS.md
 
-本文件记录本项目的背景、功能约定、工程约束和部署注意事项。后续维护者或自动化 Agent 在动代码前应先阅读。
+本文件给后续维护者和自动化 Agent 使用。动代码前先读这里，优先保持项目现有结构和业务口径。
 
-## 项目概览
+## 项目定位
 
-- 项目名称：`data-analysis-workbench`
-- 技术栈：Next.js App Router + TypeScript + Tailwind CSS。
-- 主要依赖：`next`、`react`、`xlsx`、`lucide-react`。
-- 当前页面入口：[app/page.tsx](app/page.tsx)
-- 全局样式入口：[app/globals.css](app/globals.css)
-- Tailwind 配置：[tailwind.config.ts](tailwind.config.ts)
+- 项目名：`data-analysis-workbench`
+- 技术栈：Next.js App Router、TypeScript、Tailwind CSS。
+- 核心依赖：`next`、`react`、`xlsx`、`lucide-react`。
+- 这是一个“数据研判工具台”，不是营销页。第一屏应直接呈现可操作工具，减少大段说明和装饰性 UI。
+- 项目 icon 位于 `public/icon.svg`，同时作为 favicon 使用。
 - 终端使用："C:\Program Files\Git\bin\bash.exe"
 
-这是一个“数据研判工具集”网站，不是营销页。第一屏应直接是可操作工具台，避免大段说明、装饰性内容和无意义的 UI 占位。
+## 代码结构
 
-## 模块化结构
+- `app/page.tsx`：页面壳、全局状态编排、当前工具挂载、导出入口。
+- `app/config/tools.ts`：工具注册信息，包括导航标题、页面标题、导出文件名和 sheet 名。
+- `app/types.ts`：共享类型。
+- `app/lib/workbook.ts`：Excel/CSV 解析、字段工具、Excel 导出。
+- `app/lib/collision.ts`：多表碰撞业务计算。
+- `app/lib/latest.ts`：取最新行业务计算。
+- `app/components`：通用 UI 组件。
+- `app/modules/collision`：多表碰撞模块 UI。
+- `app/modules/latest`：取最新行模块 UI。
 
-MVP 阶段曾把大量逻辑写在 `app/page.tsx`，后续已拆成更适合继续扩展的模块化结构。新增功能时不要再把所有内容堆回 `page.tsx`。
+新增模块时：
 
-当前结构：
-
-- [app/page.tsx](app/page.tsx)：页面壳、全局状态编排、当前工具挂载、导出入口。
-- [app/config/tools.ts](app/config/tools.ts)：工具注册信息，如导航标题、页面标题、导出文件名和 sheet 名。
-- [app/types.ts](app/types.ts)：共享类型。
-- [app/lib/workbook.ts](app/lib/workbook.ts)：Excel/CSV 解析、字段工具、Excel 导出。
-- [app/lib/collision.ts](app/lib/collision.ts)：多表碰撞业务计算。
-- [app/lib/latest.ts](app/lib/latest.ts)：取最新行业务计算。
-- [app/components](app/components)：通用 UI 组件。
-- [app/modules/collision](app/modules/collision)：多表碰撞模块 UI。
-- [app/modules/latest](app/modules/latest)：取最新行模块 UI。
-
-新增模块建议流程：
-
-1. 在 `app/config/tools.ts` 注册工具名称、标题和导出信息。
+1. 在 `app/config/tools.ts` 注册工具。
 2. 在 `app/lib/<module>.ts` 放业务计算。
 3. 在 `app/modules/<module>` 放模块 UI。
-4. 在 `app/page.tsx` 只接入模块状态和挂载，不写大块 UI/算法。
+4. 在 `app/page.tsx` 只做状态接入和模块挂载，不堆大块 UI 或算法。
 
-## 已有功能
+## 功能约定
 
 ### 多表碰撞
 
-默认展示两张 Excel / CSV 表。用户可以点击 `添加表` 继续增加第 3、第 4 张表。每张表分别选择工作表和研判字段后进行碰撞。
-
-第 1 张表是 `基准表`。后续新增表按 `参与表 A`、`参与表 B`、`参与表 C` 命名。
-
-模式命名必须使用业务名称：
-
-- `补全基准表`：等价于以第 1 张表为基准的 left join，保留基准表全部记录，任一参与表未命中的记录状态显示为 `未命中`。
-- `只取交集`：等价于多表 inner join，只保留所有参与表都命中的记录。
-
-不要在界面上显示 `Left Join`、`Inner Join`、`待补全` 等旧文案。
-
-导出按钮文案为 `导出 Excel`，导出 `.xlsx`，不要导出 CSV。
-
-多表碰撞结果在前端表格展示时需要保留 `基准表.` / `参与表 A.` / `参与表 B.` 等前缀，用来区分同名字段。但导出 Excel 时，字段名不要出现这些表名前缀。当前通过 `stripCollisionExportPrefix` 只在导出时清理列名，前端展示不变。
-
-注意：去掉表名前缀后，不同表的同名字段会在导出表头里变成重复列名。导出逻辑不能使用对象 key 方式（例如 `json_to_sheet`）生成数据，否则同名字段会互相覆盖，导致数据被“吃掉”。必须使用按列位置写入的二维数组方式（当前为 `XLSX.utils.aoa_to_sheet`），允许 Excel 表头重名但每列数据独立保留。
+- 默认展示 2 张 Excel/CSV 表，可继续添加第 3、第 4 张表。
+- 第 1 张表叫 `基准表`，后续参与表使用 `参与表 A`、`参与表 B`、`参与表 C`。
+- 模式文案只使用业务名称：
+  - `补全基准表`：等价于以基准表为主的 left join，保留基准表全部记录，未命中显示 `未命中`。
+  - `只取交集`：等价于多表 inner join，只保留所有参与表都命中的记录。
+- 界面不要出现 `Left Join`、`Inner Join`、`待补全` 等旧文案。
+- 导出按钮文案为 `导出 Excel`，导出 `.xlsx`。
+- 前端结果表格必须保留 `基准表.`、`参与表 A.` 等列名前缀，用于区分同名字段。
+- Excel 导出时去掉表名前缀，但要允许重复表头。导出逻辑必须按二维数组列位置写入，不要用对象 key 方式生成 sheet，否则同名字段会互相覆盖。
 
 ### 取最新行
 
-支持单张 Excel / CSV 表导入，选择：
-
-- `基准字段`：等价于 SQL 里的 `PARTITION BY`
-- `时间字段`：等价于 `ORDER BY 时间字段 DESC`
-
-结果应等价于：
+- 单表导入，选择 `基准字段` 和 `时间字段`。
+- 结果等价于：
 
 ```sql
 ROW_NUMBER() OVER (PARTITION BY 基准字段 ORDER BY 时间字段 DESC) = 1
 ```
 
-每个基准字段只保留时间最新的一条记录。空基准字段会被忽略，并在结果指标里展示忽略数量。
+- 每个基准字段只保留时间最新的一条记录。
+- 空基准字段要忽略，并在结果指标里展示忽略数量。
+- 时间解析当前使用 `Date.parse`，并兼容基础 Excel 序列日期数字。
 
-时间解析当前使用 `Date.parse`，并对 Excel 序列日期数字做基础兼容。
+## UI 约定
 
-## UI/交互约定
-
+- 顶部导航是标准全宽 header，左侧显示 icon 和 `数据研判工具集`，工具切换放中间或偏左。
 - 顶部工具切换包括 `多表碰撞` 和 `取最新行`。
-- 顶部导航是标准全宽 header：顶到页面最上方、左右撑满，不要做成浮动圆角卡片。
-- Header 左侧显示项目 icon 和 `数据研判工具集`，工具导航放在中间或偏左，不要挤到最右。
-- 多表碰撞下才显示 `补全基准表` / `只取交集`。
-- 多表碰撞的表卡片应横向排成一行，超出后左右滑动；不要换成多行网格。`添加表` 按钮跟在同一横向列表最后。
-- 不要恢复“左表字段 ↔ 右表字段”这种顶部映射条，因为两张表卡片里已经分别选择了研判字段。
-- 标题卡片里不要再放 `数据研判工具集` 胶囊标签，因为 header 已经展示品牌。
+- 只有多表碰撞模块显示 `补全基准表` / `只取交集`。
+- 多表碰撞的表卡片横向单行排列，超出后左右滑动；`添加表` 按钮跟在同一横向列表最后。
+- 不要恢复“左表字段 ↔ 右表字段”的顶部映射条。
 - 文件导入后，不再显示大面积导入框，只保留标题右侧的 `更换` 小按钮。
-- 统计信息不要做成占据大面积的四个卡片，应收在结果标题旁边。
-- 页面风格应偏工具型、清晰、低噪音。减少说明文字，优先让用户看到上传、字段选择、结果表格和导出。
+- 统计信息应收在结果标题旁边，不要做成大面积指标卡。
+- 页面风格偏工具型、清晰、低噪音。优先让用户看到上传、字段选择、结果表格和导出。
 - 使用 Tailwind CSS 写样式，不要回退到大量手写 CSS。
-- 项目 icon 位于 [public/icon.svg](public/icon.svg)，同时作为 favicon 使用。图标应保持简洁，避免复杂插画。
 
-## 本地开发
+## 本地开发与验证
 
 常用命令：
 
@@ -106,128 +85,57 @@ npx tsc --noEmit
 http://localhost:3000
 ```
 
-重要注意：
+注意：
 
-- 当 `npm run dev` 正在运行时，尽量不要再跑 `next build`。之前出现过 dev server 和 build 共用 `.next` 目录导致 chunk 丢失，CSS/JS 500，页面变成裸 HTML 的问题。
-- 若页面样式突然丢失，优先检查 `_next/static/css/app/layout.css` 是否返回 500。
-- 样式丢失时通常不是 Tailwind 配置问题，而是 `.next` 缓存损坏。处理方式：停止 dev server，删除 `.next`，重新启动 `npm run dev`。
-- 本机曾遇到 PowerShell 沙箱启动失败，必要时使用受控提权执行本地命令。
-
-## 验证建议
-
-改功能后优先运行：
-
-```sh
-npx tsc --noEmit
-```
-
-不要在 dev server 运行时随手执行 `npm run build`。如果确实需要构建验证，建议先停掉 dev server 或确认不会影响当前预览。
-
-验证页面样式时，可检查：
-
-- 首页返回 200
-- CSS 文件返回 200
-- CSS 内容包含 Tailwind 编译产物，而不是原始 `@tailwind`
+- 改功能后优先运行 `npx tsc --noEmit`。
+- 当 `npm run dev` 正在运行时，尽量不要同时跑 `next build`，避免 `.next` 缓存互相影响。
+- 若页面样式突然丢失，优先检查 `_next/static/css/app/layout.css` 是否返回 500；必要时停止 dev server，删除 `.next` 后重启。
+- 本机 PowerShell 沙箱偶尔启动失败，必要时使用受控提权执行本地命令。
 
 ## Docker 离线部署
 
-本项目已做 Docker 化，目标是部署到没有互联网的 Linux Server。目标服务器 Docker Compose 环境很老，可能只有 `docker-compose` 命令，因此 compose 文件使用保守的 `version: "2"`。
+项目支持打包成离线 Docker 部署包，目标服务器无需 npm、无需联网。
 
 相关文件：
 
-- [Dockerfile](Dockerfile)
-- [docker-compose.yml](docker-compose.yml)
-- [deploy.sh](deploy.sh)
-- [.dockerignore](.dockerignore)
+- `Dockerfile`
+- `docker-compose.yml`
+- `deploy.sh`
+- `.dockerignore`
 
-Next 配置开启了 standalone 输出：
-
-```js
-output: "standalone"
-```
-
-Docker standalone 运行镜像必须拷贝 `public/` 目录，否则离线部署时 `/icon.svg` 等静态资源会 404。当前 Dockerfile 已包含：
-
-```dockerfile
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-```
-
-### deploy.sh 子命令
+常用命令：
 
 ```sh
-deploy.sh pack
-deploy.sh start
-deploy.sh stop
+sh deploy.sh pack
+sh deploy.sh start
+sh deploy.sh stop
 ```
 
-含义：
+约定：
 
-- `pack`：构建 Docker 镜像，`docker save` 成镜像 tar，并把镜像、`docker-compose.yml`、`deploy.sh`、`VERSION` 打成 `tar.gz` 离线包。
-- `start`：在离线服务器上加载本地镜像 tar，并通过 `docker-compose up -d` 启动。
-- `stop`：通过 `docker-compose down` 停止。
+- Compose 文件使用 `version: "2"`，兼容老版本 `docker-compose`。
+- Next.js 使用 standalone 输出，Docker 镜像必须包含 `public/`，否则 `/icon.svg` 等静态资源会 404。
+- 默认端口为宿主机 `3000` 到容器 `3000`，可通过 `DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start` 覆盖。
+- 离线包名形如 `dist/data-analysis-workbench-offline-*.tar.gz`。
 
-端口默认是宿主机 `3000` 映射容器 `3000`。可通过环境变量覆盖：
+## Git 远端
 
-```sh
-DATA_ANALYSIS_WORKBENCH_PORT=8080 deploy.sh start
-```
+当前分支为 `main`。
 
-### 离线部署流程
-
-在有 Docker 和网络的打包机执行：
-
-```sh
-deploy.sh pack
-```
-
-把 `dist/*.tar.gz` 上传到离线 Linux 服务器，然后：
-
-```sh
-tar -xzf data-analysis-workbench-offline-*.tar.gz
-deploy.sh start
-```
-
-服务器无需 npm、无需联网。
-
-### 当前验证记录
-
-已验证：
-
-- Docker 镜像 `data-analysis-workbench:offline` 可成功构建。
-- 临时容器映射到 `3100:3000` 后，访问 `http://localhost:3100` 返回 200。
-- 已生成过离线包：`dist/data-analysis-workbench-offline-manual.tar.gz`。
-
-注意：当前 Windows/WSL 环境没有启用 Docker Desktop 的 WSL integration，导致 `badeploy.sh pack` 无法直接调用 Docker。Linux 打包机或目标 Linux 服务器不受此问题影响。
-
-## Git/远端
-
-本地仓库已初始化在 `main` 分支，首个提交为：
+远端：
 
 ```text
-5717bd0 first commit
+origin fetch: https://tentu.dala-dubhe.ts.net:33000/andrie/data-analysis-workbench.git
+origin push:  https://tentu.dala-dubhe.ts.net:33000/andrie/data-analysis-workbench.git
+origin push:  https://github.com/chkfail/data-analysis-workbench.git
+github:       https://github.com/chkfail/data-analysis-workbench.git
 ```
 
-远端配置为：
+执行 `git push origin main` 会同步推送到自建仓库和 GitHub。
 
-```text
-https://tentu.dala-dubhe.ts.net:33000/andrie/data-analysis-workbench.git
-https://github.com/chkfail/data-analysis-workbench.git
-```
+## 忽略与提交
 
-当前本地额外配置了 `github` remote，同时 `origin` 设置了两个 push URL，因此执行 `git push origin main` 会同步推送到以上两个仓库。
-
-曾尝试推送，但远端返回认证失败：
-
-```text
-remote: Failed to authenticate user
-fatal: Authentication failed
-```
-
-推送前需要先处理远端认证，例如 Git Credential Manager、token 或可用的远端地址。
-
-## 忽略规则
-
-应忽略以下类型文件：
+不要提交以下内容：
 
 - `node_modules`
 - `.next`
@@ -237,4 +145,4 @@ fatal: Authentication failed
 - `tsconfig.tsbuildinfo`
 - 本地环境变量和包管理器 debug 日志
 
-不要把离线部署包、构建缓存、依赖目录提交进仓库。
+提交前检查工作区，避免把离线部署包、构建缓存、依赖目录提交进仓库。
