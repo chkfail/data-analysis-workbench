@@ -1,12 +1,12 @@
 version: "2"
 
 services:
-  tools-web:
-    image: tools-web:offline
-    container_name: tools-web
+  data-analysis-workbench:
+    image: data-analysis-workbench:offline
+    container_name: data-analysis-workbench
     restart: unless-stopped
     ports:
-      - "${TOOLS_WEB_PORT:-3000}:3000"
+      - "${DATA_ANALYSIS_WORKBENCH_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"

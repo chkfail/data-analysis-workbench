@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-APP_NAME="${APP_NAME:-tools-web}"
-IMAGE_NAME="${IMAGE_NAME:-tools-web}"
+APP_NAME="${APP_NAME:-data-analysis-workbench}"
+IMAGE_NAME="${IMAGE_NAME:-data-analysis-workbench}"
 IMAGE_TAG="${IMAGE_TAG:-offline}"
 IMAGE_REF="${IMAGE_NAME}:${IMAGE_TAG}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"

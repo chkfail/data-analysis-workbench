@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-- 项目名称：`data-judgement-tools`
+- 项目名称：`data-analysis-workbench`
 - 技术栈：Next.js App Router + TypeScript + Tailwind CSS。
 - 主要依赖：`next`、`react`、`xlsx`、`lucide-react`。
 - 当前页面入口：[app/page.tsx](app/page.tsx)
@@ -168,7 +168,7 @@ sh deploy.sh stop
 端口默认是宿主机 `3000` 映射容器 `3000`。可通过环境变量覆盖：
 
 ```sh
-TOOLS_WEB_PORT=8080 sh deploy.sh start
+DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start
 ```
 
 ### 离线部署流程
@@ -182,7 +182,7 @@ sh deploy.sh pack
 把 `dist/*.tar.gz` 上传到离线 Linux 服务器，然后：
 
 ```sh
-tar -xzf tools-web-offline-*.tar.gz
+tar -xzf data-analysis-workbench-offline-*.tar.gz
 sh deploy.sh start
 ```
 
@@ -192,9 +192,9 @@ sh deploy.sh start
 
 已验证：
 
-- Docker 镜像 `tools-web:offline` 可成功构建。
+- Docker 镜像 `data-analysis-workbench:offline` 可成功构建。
 - 临时容器映射到 `3100:3000` 后，访问 `http://localhost:3100` 返回 200。
-- 已生成过离线包：`dist/tools-web-offline-manual.tar.gz`。
+- 已生成过离线包：`dist/data-analysis-workbench-offline-manual.tar.gz`。
 
 注意：当前 Windows/WSL 环境没有启用 Docker Desktop 的 WSL integration，导致 `bash deploy.sh pack` 无法直接调用 Docker。Linux 打包机或目标 Linux 服务器不受此问题影响。
 
@@ -209,8 +209,11 @@ sh deploy.sh start
 远端配置为：
 
 ```text
-https://tentu.dala-dubhe.ts.net:33000/andrie/tools-web.git
+https://tentu.dala-dubhe.ts.net:33000/andrie/data-analysis-workbench.git
+https://github.com/chkfail/data-analysis-workbench.git
 ```
+
+当前本地额外配置了 `github` remote，同时 `origin` 设置了两个 push URL，因此执行 `git push origin main` 会同步推送到以上两个仓库。
 
 曾尝试推送，但远端返回认证失败：
 
