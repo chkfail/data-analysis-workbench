@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, Download, X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import type { CollisionTableState, MatchMode, TableSlot, ToolMode, WorkbookState } from "@/app/types";
 import { TOOL_DEFINITIONS } from "@/app/config/tools";
 import { AppHeader } from "@/app/components/AppHeader";
@@ -125,13 +125,23 @@ export default function Home() {
     });
   }
 
+  function handleExport() {
+    downloadExcel(
+      activeTool.exportFile,
+      activeTool.exportSheet,
+      activeColumns,
+      activeRows,
+      toolMode === "collision" ? stripCollisionExportPrefix : undefined
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dff7f1_0,#f6f8fb_32%,#eef2f7_100%)] text-ink">
       <AppHeader activeTool={toolMode} onToolChange={setToolMode} />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
         <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-panel backdrop-blur">
-          <div className="grid gap-5 p-5 md:grid-cols-[minmax(260px,1fr)_minmax(280px,420px)_auto] md:items-center md:p-6">
+          <div className="grid gap-5 p-5 md:grid-cols-[minmax(260px,1fr)_minmax(280px,520px)] md:items-center md:p-6">
             <div>
               <h1 className="text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">{activeTool.heading}</h1>
             </div>
@@ -144,25 +154,6 @@ export default function Home() {
             ) : (
               <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">按基准字段取最新一条</div>
             )}
-
-            <button
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-              type="button"
-              disabled={activeRows.length === 0}
-              onClick={() =>
-                downloadExcel(
-                  activeTool.exportFile,
-                  activeTool.exportSheet,
-                  activeColumns,
-                  activeRows,
-                  toolMode === "collision" ? stripCollisionExportPrefix : undefined
-                )
-              }
-              title="导出结果"
-            >
-              <Download size={18} />
-              导出 Excel
-            </button>
           </div>
         </section>
 
@@ -187,6 +178,7 @@ export default function Home() {
             onField={updateCollisionField}
             onAddTable={addCollisionTable}
             onRemoveTable={removeCollisionTable}
+            onExport={handleExport}
           />
         ) : (
           <LatestModule
@@ -201,6 +193,7 @@ export default function Home() {
             onSheet={updateSheet}
             onBaseField={setLatestBaseField}
             onTimeField={setLatestTimeField}
+            onExport={handleExport}
           />
         )}
       </div>

@@ -13,22 +13,17 @@ export function buildCollisionResult({ matchMode, tables }: { matchMode: MatchMo
   const [baseTable, ...joinTables] = tables;
   const columns = ["状态", ...tables.flatMap((table) => table.columns.map((column) => `${table.title}.${column}`))];
   const indexes = joinTables.map((table) => buildIndex(table.rows, table.field));
-  let matched = 0;
-  let leftOnly = 0;
-
-  const rows = baseTable.rows.flatMap<JoinedRow>((baseRow, baseIndex) => {
+  const rawRows = baseTable.rows.flatMap<JoinedRow>((baseRow, baseIndex) => {
     const key = normalizeKey(baseRow[baseTable.field]);
     const matchGroups = indexes.map((index) => (key ? index.get(key) ?? [] : []));
     const fullyMatched = matchGroups.every((group) => group.length > 0);
 
     if (!fullyMatched) {
       if (matchMode === "collision") return [];
-      leftOnly += 1;
     }
 
     const normalizedGroups = matchGroups.map((group) => (group.length > 0 ? group : [null]));
     const combinations = cartesianProduct(normalizedGroups);
-    matched += combinations.filter((combination) => combination.every(Boolean)).length;
 
     return combinations.map((combination, combinationIndex) => {
       const rowsByTable = [baseRow, ...combination];
@@ -46,6 +41,9 @@ export function buildCollisionResult({ matchMode, tables }: { matchMode: MatchMo
       };
     });
   });
+  const rows = distinctRows(rawRows, columns);
+  const matched = rows.filter((row) => row.status === "matched").length;
+  const leftOnly = rows.filter((row) => row.status === "left-only").length;
 
   return { rows, columns, matched, leftOnly };
 }
@@ -66,4 +64,15 @@ function cartesianProduct(groups: Array<Array<DataRow | null>>) {
     (acc, group) => acc.flatMap((prefix) => group.map((item) => [...prefix, item])),
     [[]]
   );
+}
+
+function distinctRows(rows: JoinedRow[], columns: string[]) {
+  const seen = new Set<string>();
+
+  return rows.filter((row) => {
+    const key = JSON.stringify(columns.map((column) => row.data[column] ?? ""));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

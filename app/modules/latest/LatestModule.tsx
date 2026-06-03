@@ -14,7 +14,8 @@ export function LatestModule({
   onFile,
   onSheet,
   onBaseField,
-  onTimeField
+  onTimeField,
+  onExport
 }: {
   workbook: WorkbookState | null;
   columns: string[];
@@ -27,6 +28,7 @@ export function LatestModule({
   onSheet: (slot: TableSlot, sheet: string) => void;
   onBaseField: (field: string) => void;
   onTimeField: (field: string) => void;
+  onExport: () => void;
 }) {
   const canPickLatest = Boolean(workbook && baseField && timeField);
 
@@ -61,6 +63,7 @@ export function LatestModule({
           ["取最新行", result.rows.length],
           ["空基准忽略", result.ignored]
         ]}
+        onExport={onExport}
         renderCell={(row, column) => row.data[column]}
       />
     </>

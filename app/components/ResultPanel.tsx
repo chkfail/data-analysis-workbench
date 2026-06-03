@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FileSpreadsheet, Search } from "lucide-react";
+import { Download, FileSpreadsheet, Search } from "lucide-react";
 import type { MetricTuple, OutputRow } from "@/app/types";
 
 export const MAX_PREVIEW_ROWS = 250;
@@ -10,7 +10,10 @@ export function ResultPanel({
   columns,
   previewRows,
   metrics,
+  metricRows,
   emptyText,
+  note,
+  onExport,
   renderCell
 }: {
   canShow: boolean;
@@ -18,26 +21,48 @@ export function ResultPanel({
   columns: string[];
   previewRows: OutputRow[];
   metrics: MetricTuple[];
+  metricRows?: MetricTuple[][];
   emptyText: string;
+  note?: string;
+  onExport: () => void;
   renderCell: (row: OutputRow, column: string) => ReactNode;
 }) {
+  const visibleMetricRows = metricRows ?? [metrics];
+
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-panel">
       <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-black text-field">结果</p>
-          <div className="mt-1 flex flex-wrap items-end gap-3">
+          <div className="mt-1 flex flex-wrap items-center gap-3">
             <h2 className="text-xl font-black text-slate-950">{canShow ? `${rows.length.toLocaleString("zh-CN")} 条` : "等待字段"}</h2>
-            <div className="flex flex-wrap gap-2 pb-0.5">
-              {metrics.map(([label, value]) => (
-                <InlineMetric key={label} label={label} value={value} />
+            <div className="flex min-w-0 flex-col gap-2 pb-0.5">
+              {visibleMetricRows.map((metricRow, index) => (
+                <div key={index} className="flex flex-wrap gap-2">
+                  {metricRow.map(([label, value, unit]) => (
+                    <InlineMetric key={label} label={label} value={value} unit={unit} />
+                  ))}
+                </div>
               ))}
             </div>
           </div>
         </div>
-        <div className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">
-          <Search size={15} />
-          预览 {MAX_PREVIEW_ROWS} 行
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">
+            <Search size={15} />
+            预览 {MAX_PREVIEW_ROWS} 行
+          </div>
+          {note ? <div className="inline-flex h-9 items-center rounded-full bg-teal-50 px-3 text-xs font-bold text-field">{note}</div> : null}
+          <button
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-xs font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            type="button"
+            disabled={rows.length === 0}
+            onClick={onExport}
+            title="导出结果"
+          >
+            <Download size={15} />
+            导出 Excel
+          </button>
         </div>
       </div>
 
@@ -80,11 +105,14 @@ export function ResultPanel({
   );
 }
 
-function InlineMetric({ label, value }: { label: string; value: number }) {
+function InlineMetric({ label, value, unit }: { label: string; value: number; unit?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
       {label}
-      <strong className="text-slate-950">{value.toLocaleString("zh-CN")}</strong>
+      <span>
+        <strong className="text-slate-950">{value.toLocaleString("zh-CN")}</strong>
+        {unit ? <span className="text-slate-500"> {unit}</span> : null}
+      </span>
     </span>
   );
 }

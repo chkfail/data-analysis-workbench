@@ -11,6 +11,7 @@ export function TableCard({
   loading,
   controlGridClass,
   controls,
+  headerAction,
   onFile,
   onSheet
 }: {
@@ -21,6 +22,7 @@ export function TableCard({
   loading: boolean;
   controlGridClass: string;
   controls: ReactNode;
+  headerAction?: ReactNode;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
 }) {
@@ -39,12 +41,13 @@ export function TableCard({
           {workbook ? (
             <FileInput compact slot={slot} onFile={onFile} />
           ) : null}
+          {headerAction}
         </div>
       </div>
 
       {!workbook ? (
         <div className="px-5">
-          <label className="group flex min-h-24 cursor-pointer items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field">
+          <label className="group flex min-h-20 cursor-pointer items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field">
             {loading ? <Loader2 className="animate-spin" size={22} /> : <Upload size={22} />}
             <span>{loading ? "解析中" : "导入 Excel / CSV"}</span>
             <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />

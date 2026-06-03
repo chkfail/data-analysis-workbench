@@ -30,4 +30,4 @@ export type CollisionTableRuntime = CollisionTableState & {
   columns: string[];
 };
 
-export type MetricTuple = [label: string, value: number];
+export type MetricTuple = [label: string, value: number, unit?: string];
