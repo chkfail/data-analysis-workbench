@@ -1,6 +1,10 @@
-import type { MetricTuple, OutputRow, TableSlot, WorkbookState } from "@/app/types";
+import type {
+  MetricTuple,
+  OutputRow,
+  TableSlot,
+  WorkbookState,
+} from "@/app/types";
 import type { BlockSize, DedupMode } from "@/app/lib/dedup";
-import { FieldSelect } from "@/app/components/FieldSelect";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
 import { TableCard } from "@/app/components/TableCard";
 
@@ -8,7 +12,7 @@ export function DedupModule({
   workbook,
   columns,
   sourceRowsCount,
-  field,
+  fields,
   algorithm,
   threshold,
   blockSize,
@@ -20,17 +24,24 @@ export function DedupModule({
   onAlgorithm,
   onThreshold,
   onBlockSize,
-  onExport
+  onExport,
 }: {
   workbook: WorkbookState | null;
   columns: string[];
   sourceRowsCount: number;
-  field: string;
+  fields: string[];
   algorithm: DedupMode;
   threshold: number;
   blockSize: BlockSize;
   loadingSlot: TableSlot | null;
-  result: { rows: OutputRow[]; columns: string[]; clusterCount: number; involvedCount: number; recommendedCount: number; sourceCount: number };
+  result: {
+    rows: OutputRow[];
+    columns: string[];
+    clusterCount: number;
+    involvedCount: number;
+    recommendedCount: number;
+    sourceCount: number;
+  };
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
   onField: (field: string) => void;
@@ -39,11 +50,14 @@ export function DedupModule({
   onBlockSize: (blockSize: BlockSize) => void;
   onExport: () => void;
 }) {
-  const canDedup = Boolean(workbook && field && result.columns.length > 0);
+  const canDedup = Boolean(
+    workbook && fields.length > 0 && result.columns.length > 0,
+  );
   const thresholdPercent = Math.round(threshold * 100);
 
   const metrics: MetricTuple[] = [
     ["原始行数", sourceRowsCount, "行"],
+    ["匹配字段", fields.length, "个"],
     ["找到重复组", result.clusterCount, "组"],
     ["涉重行数", result.involvedCount, "行"],
   ];
@@ -58,17 +72,36 @@ export function DedupModule({
           columns={columns}
           loading={loadingSlot === "dedup"}
           controlGridClass="sm:grid-cols-2"
+          hideColumnPreview
+          sheetAsChips
           onFile={onFile}
           onSheet={onSheet}
           controls={
-            <FieldSelect
-              label="匹配字段"
-              disabled={columns.length === 0}
-              value={field}
-              onChange={onField}
-              placeholder="选择匹配字段"
-              options={columns}
-            />
+            workbook ? (
+              <div className="grid gap-2 text-xs font-black text-slate-500">
+                匹配字段
+                <div className="max-h-28 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
+                  <div className="flex flex-wrap gap-2">
+                    {columns.map((column) => (
+                      <button
+                        key={column}
+                        className={[
+                          "max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
+                          fields.includes(column)
+                            ? "bg-field text-white shadow-lg shadow-teal-900/15"
+                            : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
+                        ].join(" ")}
+                        type="button"
+                        onClick={() => onField(column)}
+                        title={column}
+                      >
+                        {column}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : undefined
           }
         />
 
@@ -77,23 +110,45 @@ export function DedupModule({
             <div>
               <p className="text-xs font-black text-field">相似度算法</p>
               <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                <AlgorithmButton active={algorithm === "levenshtein"} onClick={() => onAlgorithm("levenshtein")} title="编辑距离" desc="错别字敏感" />
-                <AlgorithmButton active={algorithm === "bigram"} onClick={() => onAlgorithm("bigram")} title="二元组" desc="长文本更佳" />
+                <AlgorithmButton
+                  active={algorithm === "levenshtein"}
+                  onClick={() => onAlgorithm("levenshtein")}
+                  title="编辑距离"
+                  desc="错别字敏感"
+                />
+                <AlgorithmButton
+                  active={algorithm === "bigram"}
+                  onClick={() => onAlgorithm("bigram")}
+                  title="二元组"
+                  desc="长文本更佳"
+                />
               </div>
             </div>
 
             <div>
               <p className="text-xs font-black text-field">分块粒度</p>
               <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                <BlockButton active={blockSize === "first-char"} onClick={() => onBlockSize("first-char")} title="首字分块" desc="召回更多" />
-                <BlockButton active={blockSize === "first-2-chars"} onClick={() => onBlockSize("first-2-chars")} title="首2字分块" desc="更精确" />
+                <BlockButton
+                  active={blockSize === "first-char"}
+                  onClick={() => onBlockSize("first-char")}
+                  title="首字分块"
+                  desc="召回更多"
+                />
+                <BlockButton
+                  active={blockSize === "first-2-chars"}
+                  onClick={() => onBlockSize("first-2-chars")}
+                  title="首2字分块"
+                  desc="更精确"
+                />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between">
                 <p className="text-xs font-black text-field">相似度阈值</p>
-                <span className="text-sm font-black text-slate-950 tabular-nums">{thresholdPercent}%</span>
+                <span className="text-sm font-black text-slate-950 tabular-nums">
+                  {thresholdPercent}%
+                </span>
               </div>
               <div className="mt-3">
                 <input
@@ -103,7 +158,9 @@ export function DedupModule({
                   max={95}
                   step={1}
                   value={thresholdPercent}
-                  onChange={(event) => onThreshold(Number(event.target.value) / 100)}
+                  onChange={(event) =>
+                    onThreshold(Number(event.target.value) / 100)
+                  }
                 />
                 <div className="mt-1 flex justify-between text-[10px] font-bold text-slate-400">
                   <span>宽松</span>
@@ -122,13 +179,28 @@ export function DedupModule({
         previewRows={result.rows.slice(0, MAX_PREVIEW_ROWS)}
         emptyText={canDedup ? "当前字段没有发现重复" : "导入表格，选择匹配字段"}
         metrics={metrics}
-        note={result.clusterCount > 0 ? `去重后可保留 ${result.recommendedCount} 组 + ${result.sourceCount - result.involvedCount} 条独立行` : undefined}
+        note={
+          result.clusterCount > 0
+            ? `去重后可保留 ${result.recommendedCount} 组 + ${result.sourceCount - result.involvedCount} 条独立行`
+            : undefined
+        }
         onExport={onExport}
+        getRowClassName={(row) => {
+          const status = row.data["推荐保留"];
+          const group = row.data["重复组"];
+          if (status.startsWith("★")) return "bg-emerald-50";
+          if (group) return "bg-rose-50";
+          return "";
+        }}
         renderCell={(row, column) => {
           if (column === "重复组") {
             const value = row.data[column];
             if (!value) return <span className="text-slate-300">—</span>;
-            return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">{value}</span>;
+            return (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800">
+                {value}
+              </span>
+            );
           }
           if (column === "推荐保留") {
             const value = row.data[column];
@@ -153,34 +225,62 @@ export function DedupModule({
   );
 }
 
-function AlgorithmButton({ active, onClick, title, desc }: { active: boolean; onClick: () => void; title: string; desc: string }) {
+function AlgorithmButton({
+  active,
+  onClick,
+  title,
+  desc,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  desc: string;
+}) {
   return (
     <button
       className={[
         "rounded-xl px-3 py-2 text-left transition",
-        active ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-700"
+        active
+          ? "bg-white text-slate-950 shadow-sm"
+          : "text-slate-500 hover:text-slate-700",
       ].join(" ")}
       type="button"
       onClick={onClick}
     >
       <span className="text-sm font-black">{title}</span>
-      <span className="mt-0.5 block text-[10px] font-bold text-slate-400">{desc}</span>
+      <span className="mt-0.5 block text-[10px] font-bold text-slate-400">
+        {desc}
+      </span>
     </button>
   );
 }
 
-function BlockButton({ active, onClick, title, desc }: { active: boolean; onClick: () => void; title: string; desc: string }) {
+function BlockButton({
+  active,
+  onClick,
+  title,
+  desc,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  desc: string;
+}) {
   return (
     <button
       className={[
         "rounded-xl px-3 py-2 text-left transition",
-        active ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-700"
+        active
+          ? "bg-white text-slate-950 shadow-sm"
+          : "text-slate-500 hover:text-slate-700",
       ].join(" ")}
       type="button"
       onClick={onClick}
     >
       <span className="text-sm font-black">{title}</span>
-      <span className="mt-0.5 block text-[10px] font-bold text-slate-400">{desc}</span>
+      <span className="mt-0.5 block text-[10px] font-bold text-slate-400">
+        {desc}
+      </span>
     </button>
   );
 }

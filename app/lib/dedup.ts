@@ -154,7 +154,7 @@ function pickCentroid(indices: number[], rows: DataRow[]) {
 function validateClusters(
   rawClusters: number[][],
   rows: DataRow[],
-  field: string,
+  fields: string[],
   algorithm: DedupMode,
   threshold: number,
 ): { valid: number[][]; singles: number[] } {
@@ -173,20 +173,27 @@ function validateClusters(
     }
 
     const centroid = pickCentroid(cluster, rows);
-    const centroidValue = normalizeKey(rows[centroid][field]);
     const keep: number[] = [];
     const stray: number[] = [];
+
+    // 多字段组合相似度
+    const simToCentroid = (idx: number) => {
+      const scores = fields.map((f) =>
+        computeSimilarity(
+          normalizeKey(rows[centroid][f]),
+          normalizeKey(rows[idx][f]),
+          algorithm,
+        ),
+      );
+      return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    };
 
     for (const idx of cluster) {
       if (idx === centroid) {
         keep.push(idx);
         continue;
       }
-      const sim = computeSimilarity(
-        centroidValue,
-        normalizeKey(rows[idx][field]),
-        algorithm,
-      );
+      const sim = simToCentroid(idx);
       if (sim >= threshold) {
         keep.push(idx);
       } else {
@@ -212,19 +219,19 @@ function validateClusters(
 export function buildDedupResult({
   rows,
   columns,
-  field,
+  fields,
   algorithm,
   threshold,
   blockSize,
 }: {
   rows: DataRow[];
   columns: string[];
-  field: string;
+  fields: string[];
   algorithm: DedupMode;
   threshold: number;
   blockSize: BlockSize;
 }): DedupResult {
-  if (!field || rows.length === 0) {
+  if (fields.length === 0 || rows.length === 0) {
     return {
       rows: [],
       columns: [],
@@ -235,10 +242,21 @@ export function buildDedupResult({
     };
   }
 
+  // 多字段组合相似度：对各字段分别计算，取均值
+  const multiSimilarity = (a: DataRow, b: DataRow) => {
+    const scores = fields.map((f) =>
+      computeSimilarity(normalizeKey(a[f]), normalizeKey(b[f]), algorithm),
+    );
+    return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  };
+
+  // 分块用首个字段
+  const blockField = fields[0];
+
   // 1. 分块
   const buckets = new Map<string, number[]>();
   rows.forEach((row, index) => {
-    const key = normalizeKey(row[field]);
+    const key = normalizeKey(row[blockField]);
     if (!key) return;
     const bk = blockKey(key, blockSize);
     const bucket = buckets.get(bk) ?? [];
@@ -255,7 +273,6 @@ export function buildDedupResult({
 
     for (let i = 0; i < indices.length; i++) {
       const idxA = indices[i];
-      const keyA = normalizeKey(rows[idxA][field]);
 
       for (let j = i + 1; j < indices.length; j++) {
         const idxB = indices[j];
@@ -263,8 +280,7 @@ export function buildDedupResult({
         if (pairsCompared.has(pairKey)) continue;
         pairsCompared.add(pairKey);
 
-        const keyB = normalizeKey(rows[idxB][field]);
-        const sim = computeSimilarity(keyA, keyB, algorithm);
+        const sim = multiSimilarity(rows[idxA], rows[idxB]);
 
         if (sim >= threshold) {
           uf.union(idxA, idxB);
@@ -294,7 +310,7 @@ export function buildDedupResult({
   const { valid: clusters } = validateClusters(
     rawClusters,
     rows,
-    field,
+    fields,
     algorithm,
     threshold,
   );
@@ -313,19 +329,11 @@ export function buildDedupResult({
       centroid,
       ...cluster
         .filter((idx) => idx !== centroid)
-        .sort((a, b) => {
-          const simA = computeSimilarity(
-            normalizeKey(rows[centroid][field]),
-            normalizeKey(rows[a][field]),
-            algorithm,
-          );
-          const simB = computeSimilarity(
-            normalizeKey(rows[centroid][field]),
-            normalizeKey(rows[b][field]),
-            algorithm,
-          );
-          return simB - simA;
-        }),
+        .sort(
+          (a, b) =>
+            multiSimilarity(rows[centroid], rows[b]) -
+            multiSimilarity(rows[centroid], rows[a]),
+        ),
     ];
 
     ordered.forEach((idx, rank) => {

@@ -55,7 +55,7 @@ export default function Home() {
   );
   const [extractCustomPattern, setExtractCustomPattern] = useState("");
   const [dedupBook, setDedupBook] = useState<WorkbookState | null>(null);
-  const [dedupField, setDedupField] = useState("");
+  const [dedupFields, setDedupFields] = useState<string[]>([]);
   const [dedupAlgorithm, setDedupAlgorithm] =
     useState<DedupMode>("levenshtein");
   const [dedupThreshold, setDedupThreshold] = useState(0.75);
@@ -123,7 +123,7 @@ export default function Home() {
       buildDedupResult({
         rows: dedupRows,
         columns: dedupColumns,
-        field: dedupField,
+        fields: dedupFields,
         algorithm: dedupAlgorithm,
         threshold: dedupThreshold,
         blockSize: dedupBlockSize,
@@ -131,7 +131,7 @@ export default function Home() {
     [
       dedupRows,
       dedupColumns,
-      dedupField,
+      dedupFields,
       dedupAlgorithm,
       dedupThreshold,
       dedupBlockSize,
@@ -174,7 +174,7 @@ export default function Home() {
         setExtractSourceFields([]);
       } else if (slot === "dedup") {
         setDedupBook(workbook);
-        setDedupField("");
+        setDedupFields([]);
       } else {
         setCollisionTables((tables) =>
           tables.map((table) =>
@@ -205,7 +205,7 @@ export default function Home() {
 
     if (slot === "dedup" && dedupBook) {
       setDedupBook({ ...dedupBook, activeSheet: sheet });
-      setDedupField("");
+      setDedupFields([]);
       return;
     }
 
@@ -275,6 +275,14 @@ export default function Home() {
 
   function toggleExtractSourceField(field: string) {
     setExtractSourceFields((fields) =>
+      fields.includes(field)
+        ? fields.filter((item) => item !== field)
+        : [...fields, field],
+    );
+  }
+
+  function toggleDedupField(field: string) {
+    setDedupFields((fields) =>
       fields.includes(field)
         ? fields.filter((item) => item !== field)
         : [...fields, field],
@@ -371,7 +379,7 @@ export default function Home() {
             workbook={dedupBook}
             columns={dedupColumns}
             sourceRowsCount={dedupRows.length}
-            field={dedupField}
+            fields={dedupFields}
             algorithm={dedupAlgorithm}
             threshold={dedupThreshold}
             blockSize={dedupBlockSize}
@@ -379,7 +387,7 @@ export default function Home() {
             result={dedupResult}
             onFile={handleFile}
             onSheet={updateSheet}
-            onField={setDedupField}
+            onField={toggleDedupField}
             onAlgorithm={setDedupAlgorithm}
             onThreshold={setDedupThreshold}
             onBlockSize={setDedupBlockSize}

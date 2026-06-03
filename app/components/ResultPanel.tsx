@@ -14,7 +14,8 @@ export function ResultPanel({
   emptyText,
   note,
   onExport,
-  renderCell
+  renderCell,
+  getRowClassName,
 }: {
   canShow: boolean;
   rows: OutputRow[];
@@ -26,6 +27,7 @@ export function ResultPanel({
   note?: string;
   onExport: () => void;
   renderCell: (row: OutputRow, column: string) => ReactNode;
+  getRowClassName?: (row: OutputRow) => string;
 }) {
   const visibleMetricRows = metricRows ?? [metrics];
 
@@ -35,12 +37,24 @@ export function ResultPanel({
         <div className="min-w-0">
           <p className="text-xs font-black text-field">结果</p>
           <div className="mt-1 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-            <h2 className="text-xl font-black text-slate-950">{canShow ? `${rows.length.toLocaleString("zh-CN")} 条` : "等待字段"}</h2>
+            <h2 className="text-xl font-black text-slate-950">
+              {canShow
+                ? `${rows.length.toLocaleString("zh-CN")} 条`
+                : "等待字段"}
+            </h2>
             <div className="flex min-w-0 flex-col gap-2 overflow-hidden pb-0.5">
               {visibleMetricRows.map((metricRow, index) => (
-                <div key={index} className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+                <div
+                  key={index}
+                  className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+                >
                   {metricRow.map(([label, value, unit]) => (
-                    <InlineMetric key={label} label={label} value={value} unit={unit} />
+                    <InlineMetric
+                      key={label}
+                      label={label}
+                      value={value}
+                      unit={unit}
+                    />
                   ))}
                 </div>
               ))}
@@ -52,7 +66,11 @@ export function ResultPanel({
             <Search size={15} />
             预览 {MAX_PREVIEW_ROWS} 行
           </div>
-          {note ? <div className="inline-flex h-9 items-center rounded-full bg-teal-50 px-3 text-xs font-bold text-field">{note}</div> : null}
+          {note ? (
+            <div className="inline-flex h-9 items-center rounded-full bg-teal-50 px-3 text-xs font-bold text-field">
+              {note}
+            </div>
+          ) : null}
           <button
             className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-xs font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             type="button"
@@ -72,7 +90,10 @@ export function ResultPanel({
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column} className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-black text-slate-600">
+                  <th
+                    key={column}
+                    className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-black text-slate-600"
+                  >
                     {column}
                   </th>
                 ))}
@@ -80,9 +101,15 @@ export function ResultPanel({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {previewRows.map((row) => (
-                <tr key={row.id} className="hover:bg-teal-50/40">
+                <tr
+                  key={row.id}
+                  className={`${getRowClassName?.(row) ?? ""} hover:brightness-95`}
+                >
                   {columns.map((column) => (
-                    <td key={column} className="max-w-[260px] truncate px-4 py-3 text-slate-700">
+                    <td
+                      key={column}
+                      className="max-w-[260px] truncate px-4 py-3 text-slate-700"
+                    >
                       {renderCell(row, column)}
                     </td>
                   ))}
@@ -105,12 +132,22 @@ export function ResultPanel({
   );
 }
 
-function InlineMetric({ label, value, unit }: { label: string; value: number; unit?: string }) {
+function InlineMetric({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: number;
+  unit?: string;
+}) {
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
       {label}
       <span>
-        <strong className="text-slate-950">{value.toLocaleString("zh-CN")}</strong>
+        <strong className="text-slate-950">
+          {value.toLocaleString("zh-CN")}
+        </strong>
         {unit ? <span className="text-slate-500"> {unit}</span> : null}
       </span>
     </span>
