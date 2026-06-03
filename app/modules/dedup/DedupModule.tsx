@@ -5,6 +5,7 @@ import type {
   WorkbookState,
 } from "@/app/types";
 import type { BlockSize, DedupMode } from "@/app/lib/dedup";
+import { downloadExcel } from "@/app/lib/workbook";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
 import { TableCard } from "@/app/components/TableCard";
 
@@ -54,6 +55,33 @@ export function DedupModule({
     workbook && fields.length > 0 && result.columns.length > 0,
   );
   const thresholdPercent = Math.round(threshold * 100);
+
+  // 推荐导出：去重后的行 + 独立行，去掉标记列
+  const exportColumns =
+    columns.length > 0
+      ? columns
+      : result.columns.filter((c) => c !== "重复组" && c !== "推荐保留");
+  const recommendedRows = result.rows.filter(
+    (row) => row.data["推荐保留"] === "★ 推荐保留" || !row.data["重复组"],
+  );
+
+  function handleExportRecommended() {
+    downloadExcel(
+      "模糊去重结果_推荐.xlsx",
+      "去重结果",
+      exportColumns,
+      recommendedRows,
+    );
+  }
+
+  function handleExportFull() {
+    downloadExcel(
+      "模糊去重结果_全量.xlsx",
+      "去重结果",
+      result.columns,
+      result.rows,
+    );
+  }
 
   const metrics: MetricTuple[] = [
     ["原始行数", sourceRowsCount, "行"],
@@ -184,7 +212,12 @@ export function DedupModule({
             ? `去重后可保留 ${result.recommendedCount} 组 + ${result.sourceCount - result.involvedCount} 条独立行`
             : undefined
         }
-        onExport={onExport}
+        onExport={handleExportRecommended}
+        exportLabel="导出推荐"
+        secondaryExport={{
+          label: "导出全量(含标记)",
+          onClick: handleExportFull,
+        }}
         getRowClassName={(row) => {
           const status = row.data["推荐保留"];
           const group = row.data["重复组"];

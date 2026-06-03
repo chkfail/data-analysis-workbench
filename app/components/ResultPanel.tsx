@@ -14,6 +14,8 @@ export function ResultPanel({
   emptyText,
   note,
   onExport,
+  exportLabel,
+  secondaryExport,
   renderCell,
   getRowClassName,
 }: {
@@ -26,6 +28,8 @@ export function ResultPanel({
   emptyText: string;
   note?: string;
   onExport: () => void;
+  exportLabel?: string;
+  secondaryExport?: { label: string; onClick: () => void };
   renderCell: (row: OutputRow, column: string) => ReactNode;
   getRowClassName?: (row: OutputRow) => string;
 }) {
@@ -79,8 +83,20 @@ export function ResultPanel({
             title="导出结果"
           >
             <Download size={15} />
-            导出 Excel
+            {exportLabel ?? "导出 Excel"}
           </button>
+          {secondaryExport ? (
+            <button
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+              type="button"
+              disabled={rows.length === 0}
+              onClick={secondaryExport.onClick}
+              title={secondaryExport.label}
+            >
+              <Download size={15} />
+              {secondaryExport.label}
+            </button>
+          ) : null}
         </div>
       </div>
 

@@ -342,7 +342,7 @@ export function buildDedupResult({
         id: String(idx),
         data: {
           重复组: groupId,
-          推荐保留: rank === 0 ? "★ 推荐" : `第 ${rank + 1} 条`,
+          推荐保留: rank === 0 ? "★ 推荐保留" : "推荐删除",
           ...Object.fromEntries(
             columns.map((col) => [col, formatValue(rows[idx][col])]),
           ),
