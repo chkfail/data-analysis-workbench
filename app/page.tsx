@@ -119,8 +119,8 @@ export default function Home() {
 
             {toolMode === "collision" ? (
               <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全模式" />
-                <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="碰撞模式" />
+                <ModeButton active={matchMode === "complete"} onClick={() => setMatchMode("complete")} title="补全左表" />
+                <ModeButton active={matchMode === "collision"} onClick={() => setMatchMode("collision")} title="只取交集" />
               </div>
             ) : (
               <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-sm font-black text-slate-500">按基准字段取最新一条</div>
