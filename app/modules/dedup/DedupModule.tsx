@@ -14,6 +14,7 @@ export function DedupModule({
   columns,
   sourceRowsCount,
   fields,
+  exactFields,
   algorithm,
   threshold,
   blockSize,
@@ -22,6 +23,7 @@ export function DedupModule({
   onFile,
   onSheet,
   onField,
+  onExactField,
   onAlgorithm,
   onThreshold,
   onBlockSize,
@@ -31,6 +33,7 @@ export function DedupModule({
   columns: string[];
   sourceRowsCount: number;
   fields: string[];
+  exactFields: string[];
   algorithm: DedupMode;
   threshold: number;
   blockSize: BlockSize;
@@ -46,6 +49,7 @@ export function DedupModule({
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
   onField: (field: string) => void;
+  onExactField: (field: string) => void;
   onAlgorithm: (algorithm: DedupMode) => void;
   onThreshold: (threshold: number) => void;
   onBlockSize: (blockSize: BlockSize) => void;
@@ -86,49 +90,31 @@ export function DedupModule({
   const metrics: MetricTuple[] = [
     ["原始行数", sourceRowsCount, "行"],
     ["匹配字段", fields.length, "个"],
+    ["完全一致字段", exactFields.length, "个"],
     ["找到重复组", result.clusterCount, "组"],
     ["涉重行数", result.involvedCount, "行"],
   ];
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-[minmax(420px,1fr)_minmax(340px,0.8fr)]">
+      <section className="grid gap-4 lg:grid-cols-[minmax(620px,1.25fr)_minmax(320px,0.75fr)]">
         <TableCard
           slot="dedup"
           title="数据表"
           workbook={workbook}
           columns={columns}
           loading={loadingSlot === "dedup"}
-          controlGridClass="sm:grid-cols-2"
+          controlGridClass="lg:grid-cols-[0.5fr_1fr_1fr]"
           hideColumnPreview
           sheetAsChips
           onFile={onFile}
           onSheet={onSheet}
           controls={
             workbook ? (
-              <div className="grid gap-2 text-xs font-black text-slate-500">
-                匹配字段
-                <div className="max-h-28 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
-                  <div className="flex flex-wrap gap-2">
-                    {columns.map((column) => (
-                      <button
-                        key={column}
-                        className={[
-                          "max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
-                          fields.includes(column)
-                            ? "bg-field text-white shadow-lg shadow-teal-900/15"
-                            : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
-                        ].join(" ")}
-                        type="button"
-                        onClick={() => onField(column)}
-                        title={column}
-                      >
-                        {column}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <>
+                <FieldChipPicker title="匹配字段" columns={columns} selected={fields} onToggle={onField} />
+                <FieldChipPicker title="完全一致字段" columns={columns} selected={exactFields} onToggle={onExactField} />
+              </>
             ) : undefined
           }
         />
@@ -209,7 +195,7 @@ export function DedupModule({
         metrics={metrics}
         note={
           result.clusterCount > 0
-            ? `去重后可保留 ${result.recommendedCount} 组 + ${result.sourceCount - result.involvedCount} 条独立行`
+            ? `去重后可保留 ${result.recommendedCount} 组 + ${result.sourceCount - result.involvedCount} 条独立行${exactFields.length > 0 ? "；已应用完全一致约束" : ""}`
             : undefined
         }
         onExport={handleExportRecommended}
@@ -255,6 +241,44 @@ export function DedupModule({
         }}
       />
     </>
+  );
+}
+
+function FieldChipPicker({
+  title,
+  columns,
+  selected,
+  onToggle,
+}: {
+  title: string;
+  columns: string[];
+  selected: string[];
+  onToggle: (field: string) => void;
+}) {
+  return (
+    <div className="grid gap-2 text-xs font-black text-slate-500">
+      {title}
+      <div className="h-36 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
+        <div className="flex flex-wrap gap-2">
+          {columns.map((column) => (
+            <button
+              key={column}
+              className={[
+                "max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
+                selected.includes(column)
+                  ? "bg-field text-white shadow-lg shadow-teal-900/15"
+                  : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
+              ].join(" ")}
+              type="button"
+              onClick={() => onToggle(column)}
+              title={column}
+            >
+              {column}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -75,6 +75,14 @@ function computeSimilarity(a: string, b: string, algorithm: DedupMode) {
     : levenshteinRatio(a, b);
 }
 
+function exactKey(row: DataRow, exactFields: string[]) {
+  return JSON.stringify(exactFields.map((field) => formatValue(row[field])));
+}
+
+function exactFieldsMatch(a: DataRow, b: DataRow, exactFields: string[]) {
+  return exactFields.every((field) => formatValue(a[field]) === formatValue(b[field]));
+}
+
 /* ------------------------------------------------------------------ */
 /*  Union-Find                                                        */
 /* ------------------------------------------------------------------ */
@@ -155,6 +163,7 @@ function validateClusters(
   rawClusters: number[][],
   rows: DataRow[],
   fields: string[],
+  exactFields: string[],
   algorithm: DedupMode,
   threshold: number,
 ): { valid: number[][]; singles: number[] } {
@@ -194,7 +203,7 @@ function validateClusters(
         continue;
       }
       const sim = simToCentroid(idx);
-      if (sim >= threshold) {
+      if (exactFieldsMatch(rows[centroid], rows[idx], exactFields) && sim >= threshold) {
         keep.push(idx);
       } else {
         stray.push(idx);
@@ -220,6 +229,7 @@ export function buildDedupResult({
   rows,
   columns,
   fields,
+  exactFields,
   algorithm,
   threshold,
   blockSize,
@@ -227,6 +237,7 @@ export function buildDedupResult({
   rows: DataRow[];
   columns: string[];
   fields: string[];
+  exactFields: string[];
   algorithm: DedupMode;
   threshold: number;
   blockSize: BlockSize;
@@ -258,7 +269,7 @@ export function buildDedupResult({
   rows.forEach((row, index) => {
     const key = normalizeKey(row[blockField]);
     if (!key) return;
-    const bk = blockKey(key, blockSize);
+    const bk = `${exactKey(row, exactFields)}:${blockKey(key, blockSize)}`;
     const bucket = buckets.get(bk) ?? [];
     bucket.push(index);
     buckets.set(bk, bucket);
@@ -279,6 +290,8 @@ export function buildDedupResult({
         const pairKey = `${Math.min(idxA, idxB)}-${Math.max(idxA, idxB)}`;
         if (pairsCompared.has(pairKey)) continue;
         pairsCompared.add(pairKey);
+
+        if (!exactFieldsMatch(rows[idxA], rows[idxB], exactFields)) continue;
 
         const sim = multiSimilarity(rows[idxA], rows[idxB]);
 
@@ -311,6 +324,7 @@ export function buildDedupResult({
     rawClusters,
     rows,
     fields,
+    exactFields,
     algorithm,
     threshold,
   );
