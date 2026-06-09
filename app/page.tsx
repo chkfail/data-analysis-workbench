@@ -42,6 +42,7 @@ function getCollisionTableTitle(index: number) {
 export default function Home() {
   const [toolMode, setToolMode] = useState<ToolMode>("collision");
   const [matchMode, setMatchMode] = useState<MatchMode>("complete");
+  const [collisionCaseSensitive, setCollisionCaseSensitive] = useState(false);
   const [collisionTables, setCollisionTables] = useState<CollisionTableState[]>(
     initialCollisionTables,
   );
@@ -61,6 +62,7 @@ export default function Home() {
     useState<DedupMode>("levenshtein");
   const [dedupThreshold, setDedupThreshold] = useState(0.75);
   const [dedupBlockSize, setDedupBlockSize] = useState<BlockSize>("first-char");
+  const [dedupCaseSensitive, setDedupCaseSensitive] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
 
@@ -88,8 +90,9 @@ export default function Home() {
       buildCollisionResult({
         matchMode,
         tables: collisionRuntimeTables,
+        caseSensitive: collisionCaseSensitive,
       }),
-    [matchMode, collisionRuntimeTables],
+    [matchMode, collisionRuntimeTables, collisionCaseSensitive],
   );
 
   const latestResult = useMemo(
@@ -129,6 +132,7 @@ export default function Home() {
         algorithm: dedupAlgorithm,
         threshold: dedupThreshold,
         blockSize: dedupBlockSize,
+        caseSensitive: dedupCaseSensitive,
       }),
     [
       dedupRows,
@@ -138,6 +142,7 @@ export default function Home() {
       dedupAlgorithm,
       dedupThreshold,
       dedupBlockSize,
+      dedupCaseSensitive,
     ],
   );
 
@@ -316,16 +321,22 @@ export default function Home() {
             </div>
 
             {toolMode === "collision" ? (
-              <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                <ModeButton
-                  active={matchMode === "complete"}
-                  onClick={() => setMatchMode("complete")}
-                  title="补全基准表"
-                />
-                <ModeButton
-                  active={matchMode === "collision"}
-                  onClick={() => setMatchMode("collision")}
-                  title="只取交集"
+              <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
+                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                  <ModeButton
+                    active={matchMode === "complete"}
+                    onClick={() => setMatchMode("complete")}
+                    title="补全基准表"
+                  />
+                  <ModeButton
+                    active={matchMode === "collision"}
+                    onClick={() => setMatchMode("collision")}
+                    title="只取交集"
+                  />
+                </div>
+                <CaseSensitiveToggle
+                  checked={collisionCaseSensitive}
+                  onChange={setCollisionCaseSensitive}
                 />
               </div>
             ) : toolMode === "extract" ? (
@@ -333,8 +344,14 @@ export default function Home() {
                 按正则表达式提取字段
               </div>
             ) : toolMode === "dedup" ? (
-              <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
-                按相似度算法发现重复行
+              <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
+                <div className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 px-4 text-sm font-black text-slate-500">
+                  按相似度算法发现重复行
+                </div>
+                <CaseSensitiveToggle
+                  checked={dedupCaseSensitive}
+                  onChange={setDedupCaseSensitive}
+                />
               </div>
             ) : (
               <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
@@ -428,5 +445,25 @@ export default function Home() {
         )}
       </div>
     </main>
+  );
+}
+
+function CaseSensitiveToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-black text-slate-500 transition hover:bg-slate-200">
+      <input
+        className="h-4 w-4 accent-field"
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      区分大小写
+    </label>
   );
 }

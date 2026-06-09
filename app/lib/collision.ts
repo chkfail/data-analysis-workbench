@@ -1,20 +1,28 @@
 import type { CollisionTableRuntime, DataRow, JoinedRow, MatchMode } from "@/app/types";
-import { formatValue, normalizeKey } from "@/app/lib/workbook";
+import { formatValue } from "@/app/lib/workbook";
 
 export function stripCollisionExportPrefix(column: string) {
   return column.replace(/^(左表|右表|基准表|表\d+|参与表 [A-Z]+)\./, "");
 }
 
-export function buildCollisionResult({ matchMode, tables }: { matchMode: MatchMode; tables: CollisionTableRuntime[] }) {
+export function buildCollisionResult({
+  matchMode,
+  tables,
+  caseSensitive
+}: {
+  matchMode: MatchMode;
+  tables: CollisionTableRuntime[];
+  caseSensitive: boolean;
+}) {
   if (tables.length < 2 || tables.some((table) => !table.field || table.rows.length === 0)) {
     return { rows: [] as JoinedRow[], columns: [] as string[], matched: 0, leftOnly: 0 };
   }
 
   const [baseTable, ...joinTables] = tables;
   const columns = ["状态", ...tables.flatMap((table) => table.columns.map((column) => `${table.title}.${column}`))];
-  const indexes = joinTables.map((table) => buildIndex(table.rows, table.field));
+  const indexes = joinTables.map((table) => buildIndex(table.rows, table.field, caseSensitive));
   const rawRows = baseTable.rows.flatMap<JoinedRow>((baseRow, baseIndex) => {
-    const key = normalizeKey(baseRow[baseTable.field]);
+    const key = normalizeMatchKey(baseRow[baseTable.field], caseSensitive);
     const matchGroups = indexes.map((index) => (key ? index.get(key) ?? [] : []));
     const fullyMatched = matchGroups.every((group) => group.length > 0);
 
@@ -48,15 +56,20 @@ export function buildCollisionResult({ matchMode, tables }: { matchMode: MatchMo
   return { rows, columns, matched, leftOnly };
 }
 
-function buildIndex(rows: DataRow[], field: string) {
+function buildIndex(rows: DataRow[], field: string, caseSensitive: boolean) {
   return rows.reduce<Map<string, DataRow[]>>((index, row) => {
-    const key = normalizeKey(row[field]);
+    const key = normalizeMatchKey(row[field], caseSensitive);
     if (!key) return index;
     const bucket = index.get(key) ?? [];
     bucket.push(row);
     index.set(key, bucket);
     return index;
   }, new Map());
+}
+
+function normalizeMatchKey(value: unknown, caseSensitive: boolean) {
+  const normalized = String(value ?? "").trim();
+  return caseSensitive ? normalized : normalized.toLowerCase();
 }
 
 function cartesianProduct(groups: Array<Array<DataRow | null>>) {
