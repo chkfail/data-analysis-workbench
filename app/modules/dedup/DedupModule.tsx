@@ -112,8 +112,18 @@ export function DedupModule({
           controls={
             workbook ? (
               <>
-                <FieldChipPicker title="匹配字段" columns={columns} selected={fields} onToggle={onField} />
-                <FieldChipPicker title="完全一致字段" columns={columns} selected={exactFields} onToggle={onExactField} />
+                <FieldChipPicker
+                  title="匹配字段"
+                  columns={columns}
+                  selected={fields}
+                  onToggle={onField}
+                />
+                <FieldChipPicker
+                  title="完全一致字段"
+                  columns={columns}
+                  selected={exactFields}
+                  onToggle={onExactField}
+                />
               </>
             ) : undefined
           }
@@ -146,7 +156,7 @@ export function DedupModule({
                   active={blockSize === "first-char"}
                   onClick={() => onBlockSize("first-char")}
                   title="首字分块"
-                  desc="召回更多"
+                  desc="覆盖面更广"
                 />
                 <BlockButton
                   active={blockSize === "first-2-chars"}
