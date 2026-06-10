@@ -33,4 +33,10 @@ export const TOOL_DEFINITIONS: Record<
     exportFile: "模糊去重结果.xlsx",
     exportSheet: "去重结果",
   },
+  diff: {
+    title: "差异对比",
+    heading: "差异对比",
+    exportFile: "差异对比结果.xlsx",
+    exportSheet: "对比结果",
+  },
 };

@@ -6,6 +6,7 @@ import type {
   CollisionTableState,
   MatchMode,
   TableSlot,
+  DiffMode,
   ToolMode,
   WorkbookState,
 } from "@/app/types";
@@ -14,6 +15,7 @@ import { AppHeader } from "@/app/components/AppHeader";
 import { ModeButton } from "@/app/components/ModeButton";
 import { CollisionModule } from "@/app/modules/collision/CollisionModule";
 import { DedupModule } from "@/app/modules/dedup/DedupModule";
+import { DiffModule } from "@/app/modules/diff/DiffModule";
 import { ExtractModule } from "@/app/modules/extract/ExtractModule";
 import { LatestModule } from "@/app/modules/latest/LatestModule";
 import {
@@ -25,6 +27,11 @@ import {
   type BlockSize,
   type DedupMode,
 } from "@/app/lib/dedup";
+import {
+  buildKeyedDiffResult,
+  buildUnkeyedDiffResult,
+  type DiffMapping,
+} from "@/app/lib/diff";
 import { buildExtractResult, type ExtractTemplateId } from "@/app/lib/extract";
 import { buildLatestResult } from "@/app/lib/latest";
 import { downloadExcel, getColumns, parseWorkbook } from "@/app/lib/workbook";
@@ -63,6 +70,14 @@ export default function Home() {
   const [dedupThreshold, setDedupThreshold] = useState(0.75);
   const [dedupBlockSize, setDedupBlockSize] = useState<BlockSize>("first-char");
   const [dedupCaseSensitive, setDedupCaseSensitive] = useState(false);
+  const [diffMode, setDiffMode] = useState<DiffMode>("unkeyed");
+  const [diffOldBook, setDiffOldBook] = useState<WorkbookState | null>(null);
+  const [diffNewBook, setDiffNewBook] = useState<WorkbookState | null>(null);
+  const [diffMapping, setDiffMapping] = useState<DiffMapping>({
+    oldFields: [],
+    newFields: [],
+  });
+  const [diffCaseSensitive, setDiffCaseSensitive] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
 
@@ -72,6 +87,10 @@ export default function Home() {
   const extractColumns = useMemo(() => getColumns(extractRows), [extractRows]);
   const dedupRows = dedupBook?.sheets[dedupBook.activeSheet] ?? [];
   const dedupColumns = useMemo(() => getColumns(dedupRows), [dedupRows]);
+  const diffOldRows = diffOldBook?.sheets[diffOldBook.activeSheet] ?? [];
+  const diffNewRows = diffNewBook?.sheets[diffNewBook.activeSheet] ?? [];
+  const diffOldColumns = useMemo(() => getColumns(diffOldRows), [diffOldRows]);
+  const diffNewColumns = useMemo(() => getColumns(diffNewRows), [diffNewRows]);
   const collisionRuntimeTables = useMemo(
     () =>
       collisionTables.map((table) => {
@@ -145,6 +164,34 @@ export default function Home() {
       dedupCaseSensitive,
     ],
   );
+  const diffResult = useMemo(() => {
+    if (diffMode === "keyed") {
+      return buildKeyedDiffResult({
+        oldRows: diffOldRows,
+        oldColumns: diffOldColumns,
+        newRows: diffNewRows,
+        newColumns: diffNewColumns,
+        mapping: diffMapping,
+        caseSensitive: diffCaseSensitive,
+      });
+    }
+
+    return buildUnkeyedDiffResult({
+      oldRows: diffOldRows,
+      oldColumns: diffOldColumns,
+      newRows: diffNewRows,
+      newColumns: diffNewColumns,
+      caseSensitive: diffCaseSensitive,
+    });
+  }, [
+    diffMode,
+    diffOldRows,
+    diffOldColumns,
+    diffNewRows,
+    diffNewColumns,
+    diffMapping,
+    diffCaseSensitive,
+  ]);
 
   const activeTool = TOOL_DEFINITIONS[toolMode];
   const activeRows =
@@ -154,7 +201,9 @@ export default function Home() {
         ? latestResult.rows
         : toolMode === "dedup"
           ? dedupResult.rows
-          : extractResult.rows;
+          : toolMode === "diff"
+            ? diffResult.rows
+            : extractResult.rows;
   const activeColumns =
     toolMode === "collision"
       ? collisionResult.columns
@@ -162,7 +211,9 @@ export default function Home() {
         ? latestResult.columns
         : toolMode === "dedup"
           ? dedupResult.columns
-          : extractResult.columns;
+          : toolMode === "diff"
+            ? diffResult.columns
+            : extractResult.columns;
 
   async function handleFile(slot: TableSlot, file?: File) {
     if (!file) return;
@@ -184,6 +235,12 @@ export default function Home() {
         setDedupBook(workbook);
         setDedupFields([]);
         setDedupExactFields([]);
+      } else if (slot === "diff-old") {
+        setDiffOldBook(workbook);
+        setDiffMapping({ oldFields: [], newFields: [] });
+      } else if (slot === "diff-new") {
+        setDiffNewBook(workbook);
+        setDiffMapping((mapping) => ({ ...mapping, newFields: [] }));
       } else {
         setCollisionTables((tables) =>
           tables.map((table) =>
@@ -216,6 +273,18 @@ export default function Home() {
       setDedupBook({ ...dedupBook, activeSheet: sheet });
       setDedupFields([]);
       setDedupExactFields([]);
+      return;
+    }
+
+    if (slot === "diff-old" && diffOldBook) {
+      setDiffOldBook({ ...diffOldBook, activeSheet: sheet });
+      setDiffMapping({ oldFields: [], newFields: [] });
+      return;
+    }
+
+    if (slot === "diff-new" && diffNewBook) {
+      setDiffNewBook({ ...diffNewBook, activeSheet: sheet });
+      setDiffMapping((mapping) => ({ ...mapping, newFields: [] }));
       return;
     }
 
@@ -353,6 +422,25 @@ export default function Home() {
                   onChange={setDedupCaseSensitive}
                 />
               </div>
+            ) : toolMode === "diff" ? (
+              <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
+                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                  <ModeButton
+                    active={diffMode === "unkeyed"}
+                    onClick={() => setDiffMode("unkeyed")}
+                    title="按内容比对"
+                  />
+                  <ModeButton
+                    active={diffMode === "keyed"}
+                    onClick={() => setDiffMode("keyed")}
+                    title="按字段对齐"
+                  />
+                </div>
+                <CaseSensitiveToggle
+                  checked={diffCaseSensitive}
+                  onChange={setDiffCaseSensitive}
+                />
+              </div>
             ) : (
               <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
                 按基准字段取最新一条
@@ -423,6 +511,22 @@ export default function Home() {
             onAlgorithm={setDedupAlgorithm}
             onThreshold={setDedupThreshold}
             onBlockSize={setDedupBlockSize}
+            onExport={handleExport}
+          />
+        ) : toolMode === "diff" ? (
+          <DiffModule
+            oldBook={diffOldBook}
+            newBook={diffNewBook}
+            oldColumns={diffOldColumns}
+            newColumns={diffNewColumns}
+            mode={diffMode}
+            mapping={diffMapping}
+            loadingSlot={loadingSlot}
+            result={diffResult}
+            caseSensitive={diffCaseSensitive}
+            onFile={handleFile}
+            onSheet={updateSheet}
+            onMappingChange={setDiffMapping}
             onExport={handleExport}
           />
         ) : (
