@@ -55,12 +55,6 @@ export function LatestModule({
 
         <article className="rounded-[28px] border border-white/70 bg-white p-5 shadow-panel">
           <div className="grid content-start gap-5">
-            <div>
-              <p className="text-xs font-black text-field">取数规则</p>
-              <h2 className="mt-1 text-lg font-black text-slate-950">
-                基准字段 + 时间字段
-              </h2>
-            </div>
             <FieldChipPicker
               title="基准字段"
               columns={columns}

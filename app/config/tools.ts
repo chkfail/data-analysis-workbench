@@ -15,12 +15,6 @@ export const TOOL_DEFINITIONS: Record<
     exportFile: "多表碰撞结果.xlsx",
     exportSheet: "碰撞结果",
   },
-  latest: {
-    title: "取最新行",
-    heading: "取最新行",
-    exportFile: "取最新行结果.xlsx",
-    exportSheet: "取最新行",
-  },
   extract: {
     title: "智能提取",
     heading: "智能提取",
@@ -38,5 +32,11 @@ export const TOOL_DEFINITIONS: Record<
     heading: "差异对比",
     exportFile: "差异对比结果.xlsx",
     exportSheet: "对比结果",
+  },
+  latest: {
+    title: "取最新行",
+    heading: "取最新行",
+    exportFile: "取最新行结果.xlsx",
+    exportSheet: "取最新行",
   },
 };
