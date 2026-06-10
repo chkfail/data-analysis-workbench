@@ -33,6 +33,12 @@ export const TOOL_DEFINITIONS: Record<
     exportFile: "差异对比结果.xlsx",
     exportSheet: "对比结果",
   },
+  search: {
+    title: "跨表检索",
+    heading: "跨表检索",
+    exportFile: "跨表检索命中原表.xlsx",
+    exportSheet: "命中结果",
+  },
   latest: {
     title: "取最新行",
     heading: "取最新行",

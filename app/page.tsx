@@ -18,6 +18,8 @@ import { DedupModule } from "@/app/modules/dedup/DedupModule";
 import { DiffModule } from "@/app/modules/diff/DiffModule";
 import { ExtractModule } from "@/app/modules/extract/ExtractModule";
 import { LatestModule } from "@/app/modules/latest/LatestModule";
+import { SearchModule } from "@/app/modules/search/SearchModule";
+import { useSearchWorkbench } from "@/app/modules/search/useSearchWorkbench";
 import {
   buildCollisionResult,
   stripCollisionExportPrefix,
@@ -80,6 +82,11 @@ export default function Home() {
   const [diffCaseSensitive, setDiffCaseSensitive] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
+  const searchWorkbench = useSearchWorkbench({
+    exportFile: TOOL_DEFINITIONS.search.exportFile,
+    setError,
+    setLoadingSlot,
+  });
 
   const latestRows = latestBook?.sheets[latestBook.activeSheet] ?? [];
   const latestColumns = useMemo(() => getColumns(latestRows), [latestRows]);
@@ -192,7 +199,6 @@ export default function Home() {
     diffMapping,
     diffCaseSensitive,
   ]);
-
   const activeTool = TOOL_DEFINITIONS[toolMode];
   const activeRows =
     toolMode === "collision"
@@ -203,7 +209,9 @@ export default function Home() {
           ? dedupResult.rows
           : toolMode === "diff"
             ? diffResult.rows
-            : extractResult.rows;
+            : toolMode === "search"
+              ? searchWorkbench.result.rows
+              : extractResult.rows;
   const activeColumns =
     toolMode === "collision"
       ? collisionResult.columns
@@ -213,7 +221,9 @@ export default function Home() {
           ? dedupResult.columns
           : toolMode === "diff"
             ? diffResult.columns
-            : extractResult.columns;
+            : toolMode === "search"
+              ? searchWorkbench.result.columns
+              : extractResult.columns;
 
   async function handleFile(slot: TableSlot, file?: File) {
     if (!file) return;
@@ -335,6 +345,11 @@ export default function Home() {
   }
 
   function handleExport() {
+    if (toolMode === "search") {
+      searchWorkbench.exportResult();
+      return;
+    }
+
     downloadExcel(
       activeTool.exportFile,
       activeTool.exportSheet,
@@ -411,6 +426,16 @@ export default function Home() {
             ) : toolMode === "extract" ? (
               <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
                 按正则表达式提取字段
+              </div>
+            ) : toolMode === "search" ? (
+              <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
+                <div className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 px-4 text-sm font-black text-slate-500">
+                  指定要素，全字段跨表检索
+                </div>
+                <CaseSensitiveToggle
+                  checked={searchWorkbench.caseSensitive}
+                  onChange={searchWorkbench.setCaseSensitive}
+                />
               </div>
             ) : toolMode === "dedup" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
@@ -528,6 +553,22 @@ export default function Home() {
             onSheet={updateSheet}
             onMappingChange={setDiffMapping}
             onExport={handleExport}
+          />
+        ) : toolMode === "search" ? (
+          <SearchModule
+            tables={searchWorkbench.tables}
+            query={searchWorkbench.query}
+            mode={searchWorkbench.mode}
+            loadingSlot={loadingSlot}
+            result={searchWorkbench.result}
+            caseSensitive={searchWorkbench.caseSensitive}
+            onQuery={searchWorkbench.setQuery}
+            onMode={searchWorkbench.setMode}
+            onFile={searchWorkbench.handleFile}
+            onSheet={searchWorkbench.toggleSheet}
+            onAddTable={searchWorkbench.addTable}
+            onRemoveTable={searchWorkbench.removeTable}
+            onExport={searchWorkbench.exportResult}
           />
         ) : (
           <ExtractModule

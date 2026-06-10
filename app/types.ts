@@ -1,4 +1,4 @@
-export type ToolMode = "collision" | "latest" | "extract" | "dedup" | "diff";
+export type ToolMode = "collision" | "latest" | "extract" | "dedup" | "diff" | "search";
 export type MatchMode = "complete" | "collision";
 export type DiffMode = "keyed" | "unkeyed";
 export type DiffRowStatus = "added" | "deleted" | "modified" | "unchanged";
@@ -8,6 +8,7 @@ export type TableSlot =
   | "dedup"
   | "diff-old"
   | "diff-new"
+  | `search-${string}`
   | `collision-${string}`;
 export type DataRow = Record<string, string | number | boolean | null>;
 
@@ -41,6 +42,17 @@ export type CollisionTableState = {
 export type CollisionTableRuntime = CollisionTableState & {
   rows: DataRow[];
   columns: string[];
+};
+
+export type SearchTableState = {
+  id: TableSlot;
+  title: string;
+  workbook: WorkbookState | null;
+  selectedSheets: string[];
+};
+
+export type SearchTableRuntime = SearchTableState & {
+  selectedRowCount: number;
 };
 
 export type MetricTuple = [label: string, value: number, unit?: string];
