@@ -38,7 +38,12 @@ export function LatestModule({
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-[minmax(300px,1fr)_minmax(420px,1.5fr)]">
+      <section
+        className={[
+          "grid gap-4 lg:items-start",
+          workbook ? "lg:grid-cols-[minmax(300px,1fr)_minmax(420px,1.5fr)]" : "lg:grid-cols-[minmax(300px,0.75fr)]",
+        ].join(" ")}
+      >
         <TableCard
           slot="latest"
           title="数据表"
@@ -53,24 +58,26 @@ export function LatestModule({
           onSheet={onSheet}
         />
 
-        <article className="panel p-5">
-          <div className="grid content-start gap-5">
-            <FieldChipPicker
-              title="基准字段"
-              columns={columns}
-              selected={baseField}
-              emptyText="导入后选择分组字段"
-              onToggle={onBaseField}
-            />
-            <FieldChipPicker
-              title="时间字段"
-              columns={columns}
-              selected={timeField}
-              emptyText="导入后选择排序字段"
-              onToggle={onTimeField}
-            />
-          </div>
-        </article>
+        {workbook ? (
+          <article className="panel p-5">
+            <div className="grid content-start gap-5">
+              <FieldChipPicker
+                title="基准字段"
+                columns={columns}
+                selected={baseField}
+                emptyText="选择分组字段"
+                onToggle={onBaseField}
+              />
+              <FieldChipPicker
+                title="时间字段"
+                columns={columns}
+                selected={timeField}
+                emptyText="选择排序字段"
+                onToggle={onTimeField}
+              />
+            </div>
+          </article>
+        ) : null}
       </section>
 
       <ResultPanel

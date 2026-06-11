@@ -97,7 +97,7 @@ export function DedupModule({
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-[minmax(620px,1.25fr)_minmax(320px,0.75fr)]">
+      <section className="grid gap-4 lg:grid-cols-[minmax(620px,1.25fr)_minmax(320px,0.75fr)] lg:items-start">
         <TableCard
           slot="dedup"
           title="数据表"

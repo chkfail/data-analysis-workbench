@@ -64,7 +64,7 @@ select {
 
   /* 字段/工作表选择 chip */
   .chip {
-    @apply max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-bold transition;
+    @apply inline-flex max-w-48 min-w-0 items-center truncate rounded-full px-3 py-1.5 text-xs font-bold transition;
   }
 
   .chip-on {
@@ -72,7 +72,7 @@ select {
   }
 
   .chip-off {
-    @apply bg-white text-slate-500 ring-1 ring-inset ring-slate-200/80 hover:bg-field-soft hover:text-field hover:ring-field/30;
+    @apply bg-field-soft/55 text-field-deep ring-1 ring-inset ring-field/15 hover:bg-field-soft hover:text-field hover:ring-field/30;
   }
 }
 

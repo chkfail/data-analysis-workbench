@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Download, FileSpreadsheet, Search } from "lucide-react";
 import type { MetricTuple, OutputRow } from "@/app/types";
+import { MetricChip } from "@/app/components/MetricChip";
 
 export const MAX_PREVIEW_ROWS = 250;
 
@@ -53,7 +54,7 @@ export function ResultPanel({
                   className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
                 >
                   {metricRow.map(([label, value, unit]) => (
-                    <InlineMetric
+                    <MetricChip
                       key={label}
                       label={label}
                       value={value}
@@ -136,8 +137,8 @@ export function ResultPanel({
         </div>
       ) : (
         <div className="grid min-h-[260px] place-items-center p-8">
-          <div className="grid justify-items-center gap-3 text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-dashed border-slate-300 bg-paper text-slate-400">
+            <div className="grid justify-items-center gap-3 text-center">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-dashed border-field/25 bg-field-soft text-field">
               <FileSpreadsheet size={28} />
             </div>
             <p className="text-sm font-semibold text-slate-500">{emptyText}</p>
@@ -148,24 +149,3 @@ export function ResultPanel({
   );
 }
 
-function InlineMetric({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: number;
-  unit?: string;
-}) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
-      {label}
-      <span>
-        <strong className="font-mono text-slate-950">
-          {value.toLocaleString("zh-CN")}
-        </strong>
-        {unit ? <span className="text-slate-500"> {unit}</span> : null}
-      </span>
-    </span>
-  );
-}

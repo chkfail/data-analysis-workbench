@@ -1,8 +1,10 @@
 import { Download, FileSpreadsheet, Loader2, Plus, Search, Upload, X } from "lucide-react";
 import type { OutputRow, SearchTableRuntime, TableSlot } from "@/app/types";
 import { cellMatchesSearch, type SearchMode, type SearchResult } from "@/app/lib/search";
+import { MetricChip } from "@/app/components/MetricChip";
 import { ModeButton } from "@/app/components/ModeButton";
 import { MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
+import { getTableTone, TableTitleChip } from "@/app/components/TableTitleChip";
 
 export function SearchModule({
   tables,
@@ -100,11 +102,11 @@ export function SearchModule({
                 {canSearch ? `${result.matchedRowCount.toLocaleString("zh-CN")} 行` : "等待检索"}
               </h2>
               <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-                <InlineMetric label="检索表" value={result.sourceTableCount} unit="张" />
-                <InlineMetric label="选中工作表" value={result.sourceSheetCount} unit="个" />
-                <InlineMetric label="原始行数" value={result.sourceRowCount} unit="行" />
-                <InlineMetric label="命中工作表" value={result.matchedSheetCount} unit="个" />
-                <InlineMetric label="命中字段" value={result.matchedFieldCount} unit="个" />
+                <MetricChip label="检索表" value={result.sourceTableCount} unit="张" />
+                <MetricChip label="选中工作表" value={result.sourceSheetCount} unit="个" />
+                <MetricChip label="原始行数" value={result.sourceRowCount} unit="行" />
+                <MetricChip label="命中工作表" value={result.matchedSheetCount} unit="个" />
+                <MetricChip label="命中字段" value={result.matchedFieldCount} unit="个" />
               </div>
             </div>
           </div>
@@ -170,21 +172,22 @@ function SearchTableCard({
   onRemove: (slot: TableSlot) => void;
 }) {
   const sheetNames = table.workbook ? Object.keys(table.workbook.sheets) : [];
+  const tone = getTableTone(table.title);
 
   return (
     <article className="panel flex h-full flex-col">
       <div className="flex items-start justify-between gap-4 p-4">
         <div className="min-w-0">
-          <p className="text-xs font-bold tracking-wide text-field">{table.title}</p>
+          <TableTitleChip title={table.title} />
           <h2 className="mt-1 truncate text-lg font-bold text-slate-950">
             {table.workbook?.name ?? "未导入"}
           </h2>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-paper px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
+          <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
             {table.selectedRowCount.toLocaleString("zh-CN")} 行
           </span>
-          {table.workbook ? <FileInput compact slot={table.id} onFile={onFile} /> : null}
+          {table.workbook ? <FileInput compact slot={table.id} tone={tone} onFile={onFile} /> : null}
           {removable ? (
             <button
               className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
@@ -201,9 +204,9 @@ function SearchTableCard({
 
       {!table.workbook ? (
         <div className="flex flex-1 px-4 pb-4">
-          <label className="group flex flex-1 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-paper/70 text-sm font-bold text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field">
+          <label className={`group flex flex-1 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed text-sm font-bold transition ${tone.upload}`}>
             {loading ? <Loader2 className="animate-spin" size={22} /> : <Upload size={22} className="transition group-hover:-translate-y-0.5" />}
-            <span>{loading ? "解析中" : "导入 Excel / CSV"}</span>
+            <span>{loading ? "解析中" : "导入表格"}</span>
             <input
               className="sr-only"
               accept=".xlsx,.xls,.csv"
@@ -222,7 +225,7 @@ function SearchTableCard({
                   key={sheet}
                   className={[
                     "chip max-w-52",
-                    table.selectedSheets.includes(sheet) ? "chip-on" : "chip-off",
+                    table.selectedSheets.includes(sheet) ? tone.chipOn : tone.chipOff,
                   ].join(" ")}
                   type="button"
                   onClick={() => onSheet(table.id, sheet)}
@@ -270,9 +273,9 @@ function SheetResultTable({
           <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <InlineMetric label="命中行" value={rows.length} unit="行" />
-          <InlineMetric label="原始行数" value={sourceRowCount} unit="行" />
-          <InlineMetric label="命中字段" value={hitFieldCount} unit="个" />
+          <MetricChip label="命中行" value={rows.length} unit="行" />
+          <MetricChip label="原始行数" value={sourceRowCount} unit="行" />
+          <MetricChip label="命中字段" value={hitFieldCount} unit="个" />
         </div>
       </div>
       <div className="max-h-[420px] overflow-auto">
@@ -349,37 +352,19 @@ function HighlightedCell({
   );
 }
 
-function InlineMetric({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: number;
-  unit?: string;
-}) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
-      {label}
-      <span>
-        <strong className="font-mono text-slate-950">{value.toLocaleString("zh-CN")}</strong>
-        {unit ? <span className="text-slate-500"> {unit}</span> : null}
-      </span>
-    </span>
-  );
-}
-
 function FileInput({
   compact,
   slot,
+  tone,
   onFile,
 }: {
   compact?: boolean;
   slot: TableSlot;
+  tone: ReturnType<typeof getTableTone>;
   onFile: (slot: TableSlot, file?: File) => void;
 }) {
   return (
-    <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-field px-3 text-xs font-bold text-white shadow-sm shadow-field/40 transition hover:bg-field-deep">
+    <label className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-bold shadow-sm transition ${tone.action}`}>
       <Upload size={13} />
       {compact ? "更换" : "导入"}
       <input

@@ -54,7 +54,7 @@ export function DiffModule({
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <TableCard
           slot="diff-old"
           title="旧表"

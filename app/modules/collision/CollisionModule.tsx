@@ -4,6 +4,7 @@ import { FieldSelect } from "@/app/components/FieldSelect";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
 import { StatusBadge } from "@/app/components/StatusBadge";
 import { TableCard } from "@/app/components/TableCard";
+import { getTableTone } from "@/app/components/TableTitleChip";
 
 export function CollisionModule({
   tables,
@@ -70,6 +71,7 @@ export function CollisionModule({
                   onChange={(field) => onField(table.id, field)}
                   placeholder="选择字段"
                   options={table.columns}
+                  tone={getTableTone(table.title)}
                 />
               }
             />

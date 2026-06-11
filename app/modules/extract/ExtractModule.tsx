@@ -4,6 +4,7 @@ import { EXTRACT_TEMPLATES } from "@/app/lib/extract";
 import { Loader2, Upload } from "lucide-react";
 import { FieldSelect } from "@/app/components/FieldSelect";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
+import { getTableTone, TableTitleChip } from "@/app/components/TableTitleChip";
 
 export function ExtractModule({
   workbook,
@@ -38,6 +39,7 @@ export function ExtractModule({
 }) {
   const canExtract = Boolean(workbook && sourceFields.length > 0 && templates.length > 0 && !result.error && (!templates.includes("custom") || customPattern.trim()));
   const rowCount = workbook ? workbook.sheets[workbook.activeSheet]?.length ?? 0 : 0;
+  const tableTone = getTableTone("数据表");
   const extractedMetrics = Object.entries(result.extractedByColumn).map(([column, count]) => [column, count, "行"] as MetricTuple);
   const templateOptions: Array<{ id: ExtractTemplateId; title: string }> = [
     ...Object.entries(EXTRACT_TEMPLATES).map(([id, config]) => ({ id: id as ExtractTemplateId, title: config.title })),
@@ -51,17 +53,17 @@ export function ExtractModule({
           <div className="grid gap-4 p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-bold tracking-wide text-field">数据表</p>
+                <TableTitleChip title="数据表" />
                 <h2 className="mt-1 truncate text-lg font-bold text-slate-950">{workbook?.name ?? "未导入"}</h2>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="rounded-full bg-paper px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">{rowCount.toLocaleString("zh-CN")} 行</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">{rowCount.toLocaleString("zh-CN")} 行</span>
                 {workbook ? <FileInput compact slot="extract" onFile={onFile} /> : null}
               </div>
             </div>
 
             {!workbook ? (
-              <FileDrop loading={loadingSlot === "extract"} onFile={onFile} />
+              <FileDrop loading={loadingSlot === "extract"} tone={tableTone.upload} onFile={onFile} />
             ) : (
               <div className="grid gap-3">
                 <FieldSelect
@@ -109,8 +111,8 @@ export function ExtractModule({
                 <button
                   key={option.id}
                   className={[
-                    "h-9 rounded-full px-4 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50",
-                    templates.includes(option.id) ? "chip-on" : "bg-paper text-slate-500 ring-1 ring-inset ring-line hover:bg-field-soft hover:text-field hover:ring-field/30"
+                    "chip h-9 px-4 disabled:cursor-not-allowed disabled:opacity-50",
+                    templates.includes(option.id) ? "chip-on" : "chip-off"
                   ].join(" ")}
                   type="button"
                   disabled={columns.length === 0}
@@ -124,7 +126,7 @@ export function ExtractModule({
               <label className="grid gap-2 text-xs font-bold text-slate-500">
                 自定义正则
                 <input
-                  className="h-11 rounded-xl border border-line bg-white px-3 font-mono text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-sans placeholder:text-slate-400 focus:border-field focus:ring-4 focus:ring-field-soft"
+                  className="h-11 rounded-xl border border-line bg-paper px-3 font-mono text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:font-sans placeholder:text-slate-400 focus:border-field focus:bg-white focus:ring-4 focus:ring-field-soft"
                   value={customPattern}
                   onChange={(event) => onCustomPattern(event.target.value)}
                   placeholder="例如：(?<金额>\\d+(?:\\.\\d{1,2})?)元"
@@ -154,11 +156,11 @@ export function ExtractModule({
   );
 }
 
-function FileDrop({ loading, onFile }: { loading: boolean; onFile: (slot: TableSlot, file?: File) => void }) {
+function FileDrop({ loading, tone, onFile }: { loading: boolean; tone: string; onFile: (slot: TableSlot, file?: File) => void }) {
   return (
-    <label className="group flex min-h-16 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-paper/70 text-sm font-bold text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field">
+    <label className={`group flex min-h-16 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed text-sm font-bold transition ${tone}`}>
       {loading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} className="transition group-hover:-translate-y-0.5" />}
-      <span>{loading ? "解析中" : "导入 Excel / CSV"}</span>
+      <span>{loading ? "解析中" : "导入表格"}</span>
       <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile("extract", event.target.files?.[0])} />
     </label>
   );
