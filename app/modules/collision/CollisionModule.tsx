@@ -38,7 +38,7 @@ export function CollisionModule({
 
   return (
     <>
-      <section className="flex gap-4 overflow-x-auto pb-2 [scrollbar-gutter:stable]">
+      <section className="flex items-stretch gap-4 overflow-x-auto pb-2 [scrollbar-gutter:stable]">
         {tables.map((table, index) => (
           <div key={table.id} className="w-[min(82vw,560px)] shrink-0 lg:w-[calc(42.857%_-_0.857rem)] lg:min-w-[480px]">
             <TableCard
@@ -79,7 +79,7 @@ export function CollisionModule({
         ))}
 
         <button
-          className="group grid min-h-[260px] w-[min(42vw,190px)] shrink-0 place-items-center rounded-card border border-dashed border-slate-300 bg-white/50 text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field lg:w-[calc(14.286%_-_0.286rem)] lg:min-w-[150px]"
+          className="group grid w-[min(42vw,190px)] shrink-0 place-items-center self-stretch rounded-card border border-dashed border-slate-300 bg-white/50 text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field lg:w-[calc(14.286%_-_0.286rem)] lg:min-w-[150px]"
           type="button"
           onClick={onAddTable}
           aria-label="添加表"

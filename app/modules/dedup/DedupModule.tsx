@@ -94,10 +94,13 @@ export function DedupModule({
     ["找到重复组", result.clusterCount, "组"],
     ["涉重行数", result.involvedCount, "行"],
   ];
+  const layoutClass = workbook
+    ? "lg:grid-cols-[minmax(620px,1.25fr)_minmax(320px,0.75fr)]"
+    : "lg:grid-cols-[minmax(420px,0.85fr)_minmax(420px,1fr)]";
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-[minmax(620px,1.25fr)_minmax(320px,0.75fr)] lg:items-start">
+      <section className={`grid gap-4 lg:items-stretch ${layoutClass}`}>
         <TableCard
           slot="dedup"
           title="数据表"
@@ -129,7 +132,7 @@ export function DedupModule({
           }
         />
 
-        <article className="panel p-5">
+        <article className="panel h-full p-5">
           <div className="grid content-start gap-5">
             <div>
               <p className="text-xs font-bold tracking-wide text-field">相似度算法</p>

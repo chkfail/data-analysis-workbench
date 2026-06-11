@@ -38,7 +38,7 @@ export function TableCard({
   const tone = getTableTone(title);
 
   return (
-    <article className="panel">
+    <article className="panel h-full">
       <div className="flex items-start justify-between gap-4 p-5">
         <div className="min-w-0">
           <TableTitleChip title={title} />
