@@ -36,10 +36,10 @@ export function ResultPanel({
   const visibleMetricRows = metricRows ?? [metrics];
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-panel">
-      <div className="grid gap-3 border-b border-slate-100 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <section className="panel overflow-hidden">
+      <div className="grid gap-3 border-b border-line/70 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="min-w-0">
-          <p className="text-xs font-black text-field">结果</p>
+          <p className="text-xs font-bold tracking-wide text-field">结果</p>
           <div className="mt-1 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
             <h2 className="text-xl font-black text-slate-950">
               {canShow
@@ -66,17 +66,17 @@ export function ResultPanel({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">
+          <div className="inline-flex h-9 items-center gap-2 rounded-full bg-paper px-3 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
             <Search size={15} />
             预览 {MAX_PREVIEW_ROWS} 行
           </div>
           {note ? (
-            <div className="inline-flex h-9 items-center rounded-full bg-teal-50 px-3 text-xs font-bold text-field">
+            <div className="inline-flex h-9 items-center rounded-full bg-field-soft px-3 text-xs font-bold text-field ring-1 ring-inset ring-field/15">
               {note}
             </div>
           ) : null}
           <button
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-xs font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-field px-4 text-xs font-bold text-white shadow-lg shadow-field/30 transition hover:bg-field-deep disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             type="button"
             disabled={rows.length === 0}
             onClick={onExport}
@@ -87,7 +87,7 @@ export function ResultPanel({
           </button>
           {secondaryExport ? (
             <button
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition hover:border-field/40 hover:bg-field-soft hover:text-field disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-white disabled:text-slate-300 disabled:shadow-none"
               type="button"
               disabled={rows.length === 0}
               onClick={secondaryExport.onClick}
@@ -108,23 +108,23 @@ export function ResultPanel({
                 {columns.map((column) => (
                   <th
                     key={column}
-                    className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-black text-slate-600"
+                    className="sticky top-0 z-10 border-b border-line bg-paper px-4 py-3 text-xs font-bold text-slate-500"
                   >
                     {column}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line/60">
               {previewRows.map((row) => (
                 <tr
                   key={row.id}
-                  className={`${getRowClassName?.(row) ?? ""} hover:brightness-95`}
+                  className={`${getRowClassName?.(row) ?? "even:bg-paper/40"} transition-colors hover:brightness-[0.97]`}
                 >
                   {columns.map((column) => (
                     <td
                       key={column}
-                      className="max-w-[260px] truncate px-4 py-3 text-slate-700"
+                      className="max-w-[260px] truncate px-4 py-2.5 text-slate-700"
                     >
                       {renderCell(row, column)}
                     </td>
@@ -137,10 +137,10 @@ export function ResultPanel({
       ) : (
         <div className="grid min-h-[260px] place-items-center p-8">
           <div className="grid justify-items-center gap-3 text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
-              <FileSpreadsheet size={30} />
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-dashed border-slate-300 bg-paper text-slate-400">
+              <FileSpreadsheet size={28} />
             </div>
-            <p className="text-sm font-bold text-slate-500">{emptyText}</p>
+            <p className="text-sm font-semibold text-slate-500">{emptyText}</p>
           </div>
         </div>
       )}
@@ -158,10 +158,10 @@ function InlineMetric({
   unit?: string;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
       {label}
       <span>
-        <strong className="text-slate-950">
+        <strong className="font-mono text-slate-950">
           {value.toLocaleString("zh-CN")}
         </strong>
         {unit ? <span className="text-slate-500"> {unit}</span> : null}

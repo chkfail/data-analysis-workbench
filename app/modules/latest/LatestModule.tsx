@@ -53,7 +53,7 @@ export function LatestModule({
           onSheet={onSheet}
         />
 
-        <article className="rounded-[28px] border border-white/70 bg-white p-5 shadow-panel">
+        <article className="panel p-5">
           <div className="grid content-start gap-5">
             <FieldChipPicker
               title="基准字段"
@@ -111,18 +111,16 @@ function FieldChipPicker({
 }) {
   return (
     <div className="grid gap-2">
-      <p className="text-xs font-black text-field">{title}</p>
-      <div className="max-h-44 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
+      <p className="text-xs font-bold tracking-wide text-field">{title}</p>
+      <div className="max-h-44 overflow-auto rounded-2xl border border-line bg-paper/70 p-2">
         {columns.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {columns.map((column) => (
               <button
                 key={`${title}-${column}`}
                 className={[
-                  "max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
-                  selected === column
-                    ? "bg-field text-white shadow-lg shadow-teal-900/15"
-                    : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
+                  "chip",
+                  selected === column ? "chip-on" : "chip-off",
                 ].join(" ")}
                 type="button"
                 onClick={() => onToggle(selected === column ? "" : column)}
@@ -133,7 +131,7 @@ function FieldChipPicker({
             ))}
           </div>
         ) : (
-          <div className="grid min-h-20 place-items-center rounded-xl text-xs font-bold text-slate-400">
+          <div className="grid min-h-20 place-items-center rounded-xl text-xs font-semibold text-slate-400">
             {emptyText}
           </div>
         )}

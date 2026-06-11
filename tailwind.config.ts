@@ -5,12 +5,30 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#132033",
-        field: "#0f766e",
-        paper: "#f6f8fb"
+        ink: "#0f1d2b",
+        paper: "#f2f4f6",
+        line: "#e4e9ef",
+        field: {
+          DEFAULT: "#0c6e60",
+          deep: "#09584d",
+          soft: "#e9f4f1"
+        }
+      },
+      borderRadius: {
+        card: "20px"
       },
       boxShadow: {
-        panel: "0 18px 45px rgba(15, 35, 66, 0.08)"
+        panel:
+          "0 1px 2px rgba(15, 29, 43, 0.04), 0 16px 40px -16px rgba(15, 29, 43, 0.14)"
+      },
+      fontFamily: {
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Consolas",
+          "monospace"
+        ]
       }
     }
   },

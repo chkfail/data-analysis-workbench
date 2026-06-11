@@ -14,10 +14,10 @@ export function FieldSelect({
   options: string[];
 }) {
   return (
-    <label className="grid gap-2 text-xs font-black text-slate-500">
+    <label className="grid gap-2 text-xs font-bold text-slate-500">
       {label}
       <select
-        className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none transition focus:border-field focus:ring-4 focus:ring-teal-100 disabled:bg-slate-100 disabled:text-slate-400"
+        className="h-11 rounded-xl border border-line bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-field focus:ring-4 focus:ring-field-soft disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
         disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}

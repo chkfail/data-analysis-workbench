@@ -8,9 +8,23 @@ html {
 
 body {
   min-height: 100%;
-  background: #f6f8fb;
-  color: #132033;
-  font-family: Arial, "Microsoft YaHei", sans-serif;
+  background-color: #f2f4f6;
+  background-image:
+    radial-gradient(1100px 420px at 16% -10%, rgba(12, 110, 96, 0.08), transparent 62%),
+    linear-gradient(to right, rgba(15, 29, 43, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 29, 43, 0.03) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
+  background-attachment: fixed;
+  color: #0f1d2b;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    sans-serif;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
 
@@ -18,4 +32,67 @@ button,
 input,
 select {
   font: inherit;
+}
+
+::selection {
+  background: rgba(12, 110, 96, 0.18);
+}
+
+*::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c7d1da;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #aab8c4;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  /* 工具台卡片统一外观 */
+  .panel {
+    @apply rounded-card border border-line bg-white shadow-panel;
+  }
+
+  /* 字段/工作表选择 chip */
+  .chip {
+    @apply max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-bold transition;
+  }
+
+  .chip-on {
+    @apply bg-field text-white shadow-sm shadow-field/40;
+  }
+
+  .chip-off {
+    @apply bg-white text-slate-500 ring-1 ring-inset ring-slate-200/80 hover:bg-field-soft hover:text-field hover:ring-field/30;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
 }

@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+
+const plexMono = IBM_Plex_Mono({
+  weight: ["500", "600"],
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
   title: "数据研判工具箱",
@@ -17,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" className={plexMono.variable}>
       <body>{children}</body>
     </html>
   );

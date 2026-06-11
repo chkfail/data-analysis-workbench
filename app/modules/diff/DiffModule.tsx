@@ -169,18 +169,16 @@ function FieldChipPicker({
   onToggle: (field: string) => void;
 }) {
   return (
-    <div className="grid gap-2 text-xs font-black text-slate-500">
+    <div className="grid gap-2 text-xs font-bold text-slate-500">
       {title}
-      <div className="h-36 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
+      <div className="h-36 overflow-auto rounded-2xl border border-line bg-paper/70 p-2">
         <div className="flex flex-wrap gap-2">
           {columns.map((column) => (
             <button
               key={column}
               className={[
-                "max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
-                selected.includes(column)
-                  ? "bg-field text-white shadow-lg shadow-teal-900/15"
-                  : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
+                "chip",
+                selected.includes(column) ? "chip-on" : "chip-off",
               ].join(" ")}
               type="button"
               onClick={() => onToggle(column)}

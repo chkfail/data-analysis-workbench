@@ -2,8 +2,8 @@ export function ModeButton({ active, onClick, title }: { active: boolean; onClic
   return (
     <button
       className={[
-        "h-11 rounded-xl text-sm font-black transition",
-        active ? "bg-field text-white shadow-md shadow-teal-900/15" : "text-slate-600 hover:bg-white/70"
+        "h-11 rounded-[14px] text-sm font-bold transition",
+        active ? "bg-field text-white shadow-md shadow-field/30" : "text-slate-500 hover:bg-white/80 hover:text-slate-800"
       ].join(" ")}
       type="button"
       onClick={onClick}

@@ -52,27 +52,27 @@ export function SearchModule({
         ))}
 
         <button
-          className="grid h-[220px] w-[min(42vw,170px)] shrink-0 place-items-center rounded-[28px] border border-dashed border-slate-300 bg-slate-100/70 text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field lg:w-[170px]"
+          className="group grid h-[220px] w-[min(42vw,170px)] shrink-0 place-items-center rounded-card border border-dashed border-slate-300 bg-white/50 text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field lg:w-[170px]"
           type="button"
           onClick={onAddTable}
           aria-label="添加表"
           title="添加表"
         >
-          <span className="inline-flex flex-col items-center gap-2 text-sm font-black">
-            <Plus size={24} />
+          <span className="inline-flex flex-col items-center gap-2 text-sm font-bold">
+            <Plus size={24} className="transition group-hover:rotate-90" />
             添加表
           </span>
         </button>
       </section>
 
-      <section className="rounded-[28px] border border-white/70 bg-white p-5 shadow-panel">
+      <section className="panel p-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(360px,1fr)_minmax(320px,0.72fr)] lg:items-end">
           <div>
-            <p className="text-xs font-black text-field">检索要素</p>
-            <label className="mt-3 flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 transition focus-within:border-field focus-within:bg-white">
+            <p className="text-xs font-bold tracking-wide text-field">检索要素</p>
+            <label className="mt-3 flex h-12 items-center gap-3 rounded-2xl border border-line bg-paper/70 px-4 shadow-sm transition focus-within:border-field focus-within:bg-white focus-within:ring-4 focus-within:ring-field-soft">
               <Search size={18} className="shrink-0 text-slate-400" />
               <input
-                className="min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                 value={query}
                 onChange={(event) => onQuery(event.target.value)}
                 placeholder="输入手机号、姓名、账号、关键词..."
@@ -81,8 +81,8 @@ export function SearchModule({
           </div>
 
           <div>
-            <p className="text-xs font-black text-field">检索方式</p>
-            <div className="mt-3 grid grid-cols-3 rounded-2xl bg-slate-100 p-1">
+            <p className="text-xs font-bold tracking-wide text-field">检索方式</p>
+            <div className="mt-3 grid grid-cols-3 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
               <ModeButton active={mode === "exact"} onClick={() => onMode("exact")} title="精确" />
               <ModeButton active={mode === "contains"} onClick={() => onMode("contains")} title="包含" />
               <ModeButton active={mode === "fuzzy"} onClick={() => onMode("fuzzy")} title="模糊" />
@@ -91,10 +91,10 @@ export function SearchModule({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-panel">
-        <div className="grid gap-3 border-b border-slate-100 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <section className="panel overflow-hidden">
+        <div className="grid gap-3 border-b border-line/70 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
-            <p className="text-xs font-black text-field">结果</p>
+            <p className="text-xs font-bold tracking-wide text-field">结果</p>
             <div className="mt-1 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
               <h2 className="text-xl font-black text-slate-950">
                 {canSearch ? `${result.matchedRowCount.toLocaleString("zh-CN")} 行` : "等待检索"}
@@ -109,7 +109,7 @@ export function SearchModule({
             </div>
           </div>
           <button
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-xs font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-field px-4 text-xs font-bold text-white shadow-lg shadow-field/30 transition hover:bg-field-deep disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             type="button"
             disabled={result.exportSheets.length === 0}
             onClick={onExport}
@@ -140,10 +140,10 @@ export function SearchModule({
         ) : (
           <div className="grid min-h-[260px] place-items-center p-8">
             <div className="grid justify-items-center gap-3 text-center">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
-                <FileSpreadsheet size={30} />
+              <div className="grid h-14 w-14 place-items-center rounded-2xl border border-dashed border-slate-300 bg-paper text-slate-400">
+                <FileSpreadsheet size={28} />
               </div>
-              <p className="text-sm font-bold text-slate-500">
+              <p className="text-sm font-semibold text-slate-500">
                 {canSearch ? "没有找到命中内容" : "选择工作表，输入要检索的要素"}
               </p>
             </div>
@@ -172,16 +172,16 @@ function SearchTableCard({
   const sheetNames = table.workbook ? Object.keys(table.workbook.sheets) : [];
 
   return (
-    <article className="flex h-full flex-col rounded-[28px] border border-white/70 bg-white shadow-panel">
+    <article className="panel flex h-full flex-col">
       <div className="flex items-start justify-between gap-4 p-4">
         <div className="min-w-0">
-          <p className="text-xs font-black text-field">{table.title}</p>
-          <h2 className="mt-1 truncate text-lg font-black text-slate-950">
+          <p className="text-xs font-bold tracking-wide text-field">{table.title}</p>
+          <h2 className="mt-1 truncate text-lg font-bold text-slate-950">
             {table.workbook?.name ?? "未导入"}
           </h2>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+          <span className="rounded-full bg-paper px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
             {table.selectedRowCount.toLocaleString("zh-CN")} 行
           </span>
           {table.workbook ? <FileInput compact slot={table.id} onFile={onFile} /> : null}
@@ -201,8 +201,8 @@ function SearchTableCard({
 
       {!table.workbook ? (
         <div className="flex flex-1 px-4 pb-4">
-          <label className="group flex flex-1 cursor-pointer items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 text-sm font-black text-slate-500 transition hover:border-field hover:bg-teal-50 hover:text-field">
-            {loading ? <Loader2 className="animate-spin" size={22} /> : <Upload size={22} />}
+          <label className="group flex flex-1 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-paper/70 text-sm font-bold text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field">
+            {loading ? <Loader2 className="animate-spin" size={22} /> : <Upload size={22} className="transition group-hover:-translate-y-0.5" />}
             <span>{loading ? "解析中" : "导入 Excel / CSV"}</span>
             <input
               className="sr-only"
@@ -213,18 +213,16 @@ function SearchTableCard({
           </label>
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 p-4 pt-0 text-xs font-black text-slate-500">
+        <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 p-4 pt-0 text-xs font-bold text-slate-500">
           工作表
-          <div className="min-h-0 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
+          <div className="min-h-0 overflow-auto rounded-2xl border border-line bg-paper/70 p-2">
             <div className="flex flex-wrap gap-2">
               {sheetNames.map((sheet) => (
                 <button
                   key={sheet}
                   className={[
-                    "max-w-52 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
-                    table.selectedSheets.includes(sheet)
-                      ? "bg-field text-white shadow-lg shadow-teal-900/15"
-                      : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
+                    "chip max-w-52",
+                    table.selectedSheets.includes(sheet) ? "chip-on" : "chip-off",
                   ].join(" ")}
                   type="button"
                   onClick={() => onSheet(table.id, sheet)}
@@ -265,11 +263,11 @@ function SheetResultTable({
   const previewRows = rows.slice(0, MAX_PREVIEW_ROWS);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3">
+    <article className="overflow-hidden rounded-2xl border border-line bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-paper/70 px-4 py-3">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-black text-slate-950">{title}</h3>
-          <p className="mt-0.5 truncate text-[11px] font-bold text-slate-400">{subtitle}</p>
+          <h3 className="truncate text-sm font-bold text-slate-950">{title}</h3>
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <InlineMetric label="命中行" value={rows.length} unit="行" />
@@ -284,18 +282,18 @@ function SheetResultTable({
               {columns.map((column) => (
                 <th
                   key={column}
-                  className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-black text-slate-600"
+                  className="sticky top-0 z-10 border-b border-line bg-paper px-4 py-3 text-xs font-bold text-slate-500"
                 >
                   {column}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line/60">
             {previewRows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-50">
+              <tr key={row.id} className="even:bg-paper/40 hover:bg-field-soft/50">
                 {columns.map((column) => (
-                  <td key={column} className="max-w-[260px] truncate px-4 py-3 text-slate-700">
+                  <td key={column} className="max-w-[260px] truncate px-4 py-2.5 text-slate-700">
                     <HighlightedCell
                       value={row.data[column]}
                       query={query}
@@ -361,10 +359,10 @@ function InlineMetric({
   unit?: string;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
       {label}
       <span>
-        <strong className="text-slate-950">{value.toLocaleString("zh-CN")}</strong>
+        <strong className="font-mono text-slate-950">{value.toLocaleString("zh-CN")}</strong>
         {unit ? <span className="text-slate-500"> {unit}</span> : null}
       </span>
     </span>
@@ -381,7 +379,7 @@ function FileInput({
   onFile: (slot: TableSlot, file?: File) => void;
 }) {
   return (
-    <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-field px-3 text-xs font-black text-white transition hover:bg-teal-700">
+    <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-field px-3 text-xs font-bold text-white shadow-sm shadow-field/40 transition hover:bg-field-deep">
       <Upload size={13} />
       {compact ? "更换" : "导入"}
       <input

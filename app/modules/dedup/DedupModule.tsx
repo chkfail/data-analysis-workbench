@@ -129,11 +129,11 @@ export function DedupModule({
           }
         />
 
-        <article className="rounded-[28px] border border-white/70 bg-white p-5 shadow-panel">
+        <article className="panel p-5">
           <div className="grid content-start gap-5">
             <div>
-              <p className="text-xs font-black text-field">相似度算法</p>
-              <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+              <p className="text-xs font-bold tracking-wide text-field">相似度算法</p>
+              <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                 <AlgorithmButton
                   active={algorithm === "levenshtein"}
                   onClick={() => onAlgorithm("levenshtein")}
@@ -150,8 +150,8 @@ export function DedupModule({
             </div>
 
             <div>
-              <p className="text-xs font-black text-field">分块粒度</p>
-              <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+              <p className="text-xs font-bold tracking-wide text-field">分块粒度</p>
+              <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                 <BlockButton
                   active={blockSize === "first-char"}
                   onClick={() => onBlockSize("first-char")}
@@ -169,8 +169,8 @@ export function DedupModule({
 
             <div>
               <div className="flex items-center justify-between">
-                <p className="text-xs font-black text-field">相似度阈值</p>
-                <span className="text-sm font-black text-slate-950 tabular-nums">
+                <p className="text-xs font-bold tracking-wide text-field">相似度阈值</p>
+                <span className="font-mono text-sm font-semibold text-slate-950">
                   {thresholdPercent}%
                 </span>
               </div>
@@ -266,18 +266,16 @@ function FieldChipPicker({
   onToggle: (field: string) => void;
 }) {
   return (
-    <div className="grid gap-2 text-xs font-black text-slate-500">
+    <div className="grid gap-2 text-xs font-bold text-slate-500">
       {title}
-      <div className="h-36 overflow-auto rounded-2xl border border-slate-100 bg-slate-50 p-2">
+      <div className="h-36 overflow-auto rounded-2xl border border-line bg-paper/70 p-2">
         <div className="flex flex-wrap gap-2">
           {columns.map((column) => (
             <button
               key={column}
               className={[
-                "max-w-48 truncate rounded-full px-3 py-1.5 text-xs font-black transition",
-                selected.includes(column)
-                  ? "bg-field text-white shadow-lg shadow-teal-900/15"
-                  : "bg-white text-slate-500 hover:bg-teal-50 hover:text-field",
+                "chip",
+                selected.includes(column) ? "chip-on" : "chip-off",
               ].join(" ")}
               type="button"
               onClick={() => onToggle(column)}
@@ -306,16 +304,16 @@ function AlgorithmButton({
   return (
     <button
       className={[
-        "rounded-xl px-3 py-2 text-left transition",
+        "rounded-[14px] px-3 py-2 text-left transition",
         active
-          ? "bg-white text-slate-950 shadow-sm"
+          ? "bg-white text-field shadow-sm ring-1 ring-inset ring-field/20"
           : "text-slate-500 hover:text-slate-700",
       ].join(" ")}
       type="button"
       onClick={onClick}
     >
-      <span className="text-sm font-black">{title}</span>
-      <span className="mt-0.5 block text-[10px] font-bold text-slate-400">
+      <span className="text-sm font-bold">{title}</span>
+      <span className="mt-0.5 block text-[10px] font-semibold text-slate-400">
         {desc}
       </span>
     </button>
@@ -336,16 +334,16 @@ function BlockButton({
   return (
     <button
       className={[
-        "rounded-xl px-3 py-2 text-left transition",
+        "rounded-[14px] px-3 py-2 text-left transition",
         active
-          ? "bg-white text-slate-950 shadow-sm"
+          ? "bg-white text-field shadow-sm ring-1 ring-inset ring-field/20"
           : "text-slate-500 hover:text-slate-700",
       ].join(" ")}
       type="button"
       onClick={onClick}
     >
-      <span className="text-sm font-black">{title}</span>
-      <span className="mt-0.5 block text-[10px] font-bold text-slate-400">
+      <span className="text-sm font-bold">{title}</span>
+      <span className="mt-0.5 block text-[10px] font-semibold text-slate-400">
         {desc}
       </span>
     </button>

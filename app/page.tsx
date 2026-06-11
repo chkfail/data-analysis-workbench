@@ -392,21 +392,25 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dff7f1_0,#f6f8fb_32%,#eef2f7_100%)] text-ink">
+    <main className="min-h-screen text-ink">
       <AppHeader activeTool={toolMode} onToolChange={setToolMode} />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
-        <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-panel backdrop-blur">
+        <section className="panel overflow-hidden bg-white/85 backdrop-blur">
           <div className="grid gap-5 p-5 md:grid-cols-[minmax(260px,1fr)_minmax(280px,520px)] md:items-center md:p-6">
-            <div>
-              <h1 className="text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
+            <div className="flex items-center gap-3">
+              <span
+                className="h-7 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-field to-ink/70"
+                aria-hidden
+              />
+              <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                 {activeTool.heading}
               </h1>
             </div>
 
             {toolMode === "collision" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
-                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                   <ModeButton
                     active={matchMode === "complete"}
                     onClick={() => setMatchMode("complete")}
@@ -424,14 +428,10 @@ export default function Home() {
                 />
               </div>
             ) : toolMode === "extract" ? (
-              <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
-                按正则表达式提取字段
-              </div>
+              <ToolHint text="按正则表达式提取字段" />
             ) : toolMode === "search" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
-                <div className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 px-4 text-sm font-black text-slate-500">
-                  指定要素，全字段跨表检索
-                </div>
+                <ToolHint text="指定要素，全字段跨表检索" />
                 <CaseSensitiveToggle
                   checked={searchWorkbench.caseSensitive}
                   onChange={searchWorkbench.setCaseSensitive}
@@ -439,9 +439,7 @@ export default function Home() {
               </div>
             ) : toolMode === "dedup" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
-                <div className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 px-4 text-sm font-black text-slate-500">
-                  按相似度算法发现重复行
-                </div>
+                <ToolHint text="按相似度算法发现重复行" />
                 <CaseSensitiveToggle
                   checked={dedupCaseSensitive}
                   onChange={setDedupCaseSensitive}
@@ -449,7 +447,7 @@ export default function Home() {
               </div>
             ) : toolMode === "diff" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
-                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                   <ModeButton
                     active={diffMode === "unkeyed"}
                     onClick={() => setDiffMode("unkeyed")}
@@ -467,19 +465,17 @@ export default function Home() {
                 />
               </div>
             ) : (
-              <div className="flex items-center justify-center rounded-2xl bg-slate-100 px-4 h-12 text-sm font-black text-slate-500">
-                按基准字段取最新一条
-              </div>
+              <ToolHint text="按基准字段取最新一条" />
             )}
           </div>
         </section>
 
         {error ? (
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          <div className="animate-rise grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 shadow-sm">
             <AlertCircle size={18} />
             <span>{error}</span>
             <button
-              className="grid h-8 w-8 place-items-center rounded-xl hover:bg-amber-100"
+              className="grid h-8 w-8 place-items-center rounded-xl transition hover:bg-amber-100"
               type="button"
               onClick={() => setError("")}
               title="关闭提示"
@@ -489,6 +485,7 @@ export default function Home() {
           </div>
         ) : null}
 
+        <div key={toolMode} className="animate-rise flex flex-col gap-4">
         {toolMode === "collision" ? (
           <CollisionModule
             tables={collisionRuntimeTables}
@@ -588,8 +585,17 @@ export default function Home() {
             onExport={handleExport}
           />
         )}
+        </div>
       </div>
     </main>
+  );
+}
+
+function ToolHint({ text }: { text: string }) {
+  return (
+    <div className="flex h-12 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-paper/70 px-4 text-sm font-semibold text-slate-500">
+      {text}
+    </div>
   );
 }
 
@@ -601,14 +607,20 @@ function CaseSensitiveToggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-black text-slate-500 transition hover:bg-slate-200">
+    <label className="inline-flex h-11 cursor-pointer select-none items-center justify-center gap-2.5 rounded-2xl bg-slate-100 px-4 ring-1 ring-inset ring-slate-200/70 transition hover:bg-slate-200/70">
       <input
-        className="h-4 w-4 accent-field"
+        className="peer sr-only"
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
       />
-      区分大小写
+      <span
+        className="relative h-5 w-9 shrink-0 rounded-full bg-slate-300 transition after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:bg-field peer-checked:after:translate-x-4"
+        aria-hidden
+      />
+      <span className="text-sm font-bold text-slate-500 transition peer-checked:text-slate-800">
+        区分大小写
+      </span>
     </label>
   );
 }
