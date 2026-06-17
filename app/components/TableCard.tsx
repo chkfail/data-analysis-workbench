@@ -66,7 +66,7 @@ export function TableCard({
             <span>{loading ? "解析中" : "导入表格"}</span>
             <input
               className="sr-only"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.csv"
               type="file"
               onChange={(event) => onFile(slot, event.target.files?.[0])}
             />
@@ -160,7 +160,7 @@ function FileInput({
       {compact ? "更换" : "导入"}
       <input
         className="sr-only"
-        accept=".xlsx,.xls,.csv"
+        accept=".xlsx,.csv"
         type="file"
         onChange={(event) => onFile(slot, event.target.files?.[0])}
       />

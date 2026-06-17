@@ -161,7 +161,7 @@ function FileDrop({ loading, tone, onFile }: { loading: boolean; tone: string; o
     <label className={`group flex min-h-16 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed text-sm font-bold transition ${tone}`}>
       {loading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} className="transition group-hover:-translate-y-0.5" />}
       <span>{loading ? "解析中" : "导入表格"}</span>
-      <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile("extract", event.target.files?.[0])} />
+      <input className="sr-only" accept=".xlsx,.csv" type="file" onChange={(event) => onFile("extract", event.target.files?.[0])} />
     </label>
   );
 }
@@ -171,7 +171,7 @@ function FileInput({ compact, slot, onFile }: { compact?: boolean; slot: TableSl
     <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-field px-3 text-xs font-bold text-white shadow-sm shadow-field/40 transition hover:bg-field-deep">
       <Upload size={13} />
       {compact ? "更换" : "导入"}
-      <input className="sr-only" accept=".xlsx,.xls,.csv" type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />
+      <input className="sr-only" accept=".xlsx,.csv" type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />
     </label>
   );
 }

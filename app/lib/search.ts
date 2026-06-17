@@ -1,6 +1,6 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { DataRow, OutputRow, SearchTableRuntime } from "@/app/types";
-import { formatValue, getColumns } from "@/app/lib/workbook";
+import { formatValue, getColumns, safeSheetName } from "@/app/lib/workbook";
 
 export type SearchMode = "exact" | "contains" | "fuzzy";
 
@@ -122,17 +122,41 @@ export function buildSearchResult({
   };
 }
 
-export function downloadSearchWorkbook(filename: string, sheets: SearchExportSheet[]) {
-  const workbook = XLSX.utils.book_new();
+export async function downloadSearchWorkbook(filename: string, sheets: SearchExportSheet[]) {
+  const workbook = new ExcelJS.Workbook();
   const usedNames = new Set<string>();
 
   sheets.forEach((sheet) => {
-    const rows = sheet.rows.map((row) => sheet.columns.map((column) => formatValue(row[column])));
-    const worksheet = XLSX.utils.aoa_to_sheet([sheet.columns, ...rows]);
-    XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName(sheet.name, usedNames));
+    let name = safeSheetName(sheet.name);
+    let index = 2;
+    const base = name;
+
+    while (usedNames.has(name)) {
+      const suffix = `_${index}`;
+      name = `${base.slice(0, 31 - suffix.length)}${suffix}`;
+      index += 1;
+    }
+    usedNames.add(name);
+
+    const worksheet = workbook.addWorksheet(name);
+    worksheet.addRow(sheet.columns);
+    sheet.rows.forEach((row) => {
+      worksheet.addRow(sheet.columns.map((column) => formatValue(row[column])));
+    });
   });
 
-  XLSX.writeFile(workbook, filename);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function emptySearchResult({
@@ -215,19 +239,4 @@ function bigrams(value: string) {
     result.add(value.slice(index, index + 2));
   }
   return result;
-}
-
-function safeSheetName(rawName: string, usedNames: Set<string>) {
-  const base = (rawName || "命中表").replace(/[\\/?*[\]:]/g, "_").slice(0, 31) || "命中表";
-  let name = base;
-  let index = 2;
-
-  while (usedNames.has(name)) {
-    const suffix = `_${index}`;
-    name = `${base.slice(0, 31 - suffix.length)}${suffix}`;
-    index += 1;
-  }
-
-  usedNames.add(name);
-  return name;
 }

@@ -72,7 +72,7 @@ export function useSearchWorkbench({
         ),
       );
     } catch {
-      setError("文件解析失败，请上传 .xlsx / .xls / .csv 文件。");
+      setError("文件解析失败，请上传 .xlsx / .csv 文件。");
     } finally {
       setLoadingSlot(null);
     }
@@ -116,8 +116,8 @@ export function useSearchWorkbench({
     });
   }
 
-  function exportResult() {
-    downloadSearchWorkbook(exportFile, result.exportSheets);
+  async function exportResult() {
+    await downloadSearchWorkbook(exportFile, result.exportSheets);
   }
 
   return {

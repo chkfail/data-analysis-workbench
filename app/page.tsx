@@ -259,7 +259,7 @@ export default function Home() {
         );
       }
     } catch {
-      setError("文件解析失败，请上传 .xlsx / .xls / .csv 文件。");
+      setError("文件解析失败，请上传 .xlsx / .csv 文件。");
     } finally {
       setLoadingSlot(null);
     }
@@ -344,19 +344,23 @@ export default function Home() {
     });
   }
 
-  function handleExport() {
-    if (toolMode === "search") {
-      searchWorkbench.exportResult();
-      return;
-    }
+  async function handleExport() {
+    try {
+      if (toolMode === "search") {
+        await searchWorkbench.exportResult();
+        return;
+      }
 
-    downloadExcel(
-      activeTool.exportFile,
-      activeTool.exportSheet,
-      activeColumns,
-      activeRows,
-      toolMode === "collision" ? stripCollisionExportPrefix : undefined,
-    );
+      await downloadExcel(
+        activeTool.exportFile,
+        activeTool.exportSheet,
+        activeColumns,
+        activeRows,
+        toolMode === "collision" ? stripCollisionExportPrefix : undefined,
+      );
+    } catch {
+      setError("导出失败，请重试。");
+    }
   }
 
   function toggleExtractTemplate(template: ExtractTemplateId) {
