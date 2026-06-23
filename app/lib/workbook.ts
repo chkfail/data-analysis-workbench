@@ -34,6 +34,16 @@ export function getColumns(rows: DataRow[]) {
   );
 }
 
+function uniqueHeaders(headers: string[]): string[] {
+  const seen = new Map<string, number>();
+  return headers.map((header) => {
+    const count = seen.get(header) ?? 0;
+    seen.set(header, count + 1);
+    if (count === 0) return header;
+    return `${header} (${count + 1})`;
+  });
+}
+
 export function toTimestamp(value: unknown) {
   if (value === null || value === undefined || value === "") return null;
 
@@ -81,10 +91,11 @@ function readFileAsText(file: File): Promise<string> {
 
 function buildDataRows(worksheet: ExcelJS.Worksheet): DataRow[] {
   const headerRow = worksheet.getRow(1);
-  const headers: string[] = [];
+  const rawHeaders: string[] = [];
   headerRow.eachCell((cell, colNumber) => {
-    headers[colNumber - 1] = String(cell.value ?? "").trim();
+    rawHeaders[colNumber - 1] = String(cell.value ?? "").trim();
   });
+  const headers = uniqueHeaders(rawHeaders);
 
   const rows: DataRow[] = [];
   worksheet.eachRow((row, rowNumber) => {
@@ -159,7 +170,8 @@ function parseCsvRows(text: string): string[][] {
 function buildDataRowsFromCsv(rows: string[][]): DataRow[] {
   if (rows.length === 0) return [];
 
-  const headers = rows[0].map((header) => header.trim());
+  const rawHeaders = rows[0].map((header) => header.trim());
+  const headers = uniqueHeaders(rawHeaders);
   return rows.slice(1).map((values) => {
     const row: DataRow = {};
     values.forEach((value, index) => {
