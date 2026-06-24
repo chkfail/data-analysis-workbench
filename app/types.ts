@@ -1,4 +1,11 @@
-export type ToolMode = "collision" | "latest" | "extract" | "dedup" | "diff" | "search";
+export type ToolMode =
+  | "collision"
+  | "latest"
+  | "extract"
+  | "dedup"
+  | "diff"
+  | "search"
+  | "merge";
 export type MatchMode = "complete" | "collision";
 export type DiffMode = "keyed" | "unkeyed";
 export type DiffRowStatus = "added" | "deleted" | "modified" | "unchanged";
@@ -8,8 +15,10 @@ export type TableSlot =
   | "dedup"
   | "diff-old"
   | "diff-new"
+  | "merge-base"
   | `search-${string}`
-  | `collision-${string}`;
+  | `collision-${string}`
+  | `merge-${string}`;
 export type DataRow = Record<string, string | number | boolean | null>;
 
 export type WorkbookState = {
@@ -54,5 +63,18 @@ export type SearchTableState = {
 export type SearchTableRuntime = SearchTableState & {
   selectedRowCount: number;
 };
+
+export type MergeTableState = {
+  id: TableSlot;
+  title: string;
+  workbook: WorkbookState | null;
+};
+
+export type MergeTableRuntime = MergeTableState & {
+  rows: DataRow[];
+  columns: string[];
+};
+
+export type MergeFieldMapping = Record<string, string>;
 
 export type MetricTuple = [label: string, value: number, unit?: string];

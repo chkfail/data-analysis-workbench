@@ -20,6 +20,11 @@ import { ExtractModule } from "@/app/modules/extract/ExtractModule";
 import { LatestModule } from "@/app/modules/latest/LatestModule";
 import { SearchModule } from "@/app/modules/search/SearchModule";
 import { useSearchWorkbench } from "@/app/modules/search/useSearchWorkbench";
+import { MergeModule } from "@/app/modules/merge/MergeModule";
+import {
+  isMergeSlot,
+  useMergeWorkbench,
+} from "@/app/modules/merge/useMergeWorkbench";
 import {
   buildCollisionResult,
   stripCollisionExportPrefix,
@@ -87,6 +92,7 @@ export default function Home() {
     setError,
     setLoadingSlot,
   });
+  const mergeWorkbench = useMergeWorkbench({ setError, setLoadingSlot });
 
   const latestRows = latestBook?.sheets[latestBook.activeSheet] ?? [];
   const latestColumns = useMemo(() => getColumns(latestRows), [latestRows]);
@@ -211,7 +217,9 @@ export default function Home() {
             ? diffResult.rows
             : toolMode === "search"
               ? searchWorkbench.result.rows
-              : extractResult.rows;
+              : toolMode === "merge"
+                ? mergeWorkbench.result.rows
+                : extractResult.rows;
   const activeColumns =
     toolMode === "collision"
       ? collisionResult.columns
@@ -223,7 +231,9 @@ export default function Home() {
             ? diffResult.columns
             : toolMode === "search"
               ? searchWorkbench.result.columns
-              : extractResult.columns;
+              : toolMode === "merge"
+                ? mergeWorkbench.result.columns
+                : extractResult.columns;
 
   async function handleFile(slot: TableSlot, file?: File) {
     if (!file) return;
@@ -251,6 +261,8 @@ export default function Home() {
       } else if (slot === "diff-new") {
         setDiffNewBook(workbook);
         setDiffMapping((mapping) => ({ ...mapping, newFields: [] }));
+      } else if (slot === "merge-base" || isMergeSlot(slot)) {
+        await mergeWorkbench.handleFile(slot, file);
       } else {
         setCollisionTables((tables) =>
           tables.map((table) =>
@@ -295,6 +307,11 @@ export default function Home() {
     if (slot === "diff-new" && diffNewBook) {
       setDiffNewBook({ ...diffNewBook, activeSheet: sheet });
       setDiffMapping((mapping) => ({ ...mapping, newFields: [] }));
+      return;
+    }
+
+    if (slot === "merge-base") {
+      mergeWorkbench.updateSheet(slot, sheet);
       return;
     }
 
@@ -468,6 +485,8 @@ export default function Home() {
                   onChange={setDiffCaseSensitive}
                 />
               </div>
+            ) : toolMode === "merge" ? (
+              <ToolHint text="按基准表表头合并多张参与表" />
             ) : (
               <ToolHint text="按基准字段取最新一条" />
             )}
@@ -570,6 +589,26 @@ export default function Home() {
             onAddTable={searchWorkbench.addTable}
             onRemoveTable={searchWorkbench.removeTable}
             onExport={searchWorkbench.exportResult}
+          />
+        ) : toolMode === "merge" ? (
+          <MergeModule
+            baseBook={mergeWorkbench.baseBook}
+            tables={mergeWorkbench.tables}
+            baseColumns={mergeWorkbench.baseColumns}
+            fieldMapping={mergeWorkbench.fieldMapping}
+            deduplicate={mergeWorkbench.deduplicate}
+            loadingSlot={loadingSlot}
+            result={mergeWorkbench.result}
+            isAddingFiles={mergeWorkbench.isAddingFiles}
+            onFile={handleFile}
+            onBaseSheet={(sheet) => mergeWorkbench.updateSheet("merge-base", sheet)}
+            onAddTable={mergeWorkbench.addTable}
+            onAddFiles={mergeWorkbench.addFiles}
+            onRemoveTable={mergeWorkbench.removeTable}
+            onFieldMapping={mergeWorkbench.updateFieldMapping}
+            onRemoveFieldMapping={mergeWorkbench.removeFieldMapping}
+            onDeduplicate={mergeWorkbench.setDeduplicate}
+            onExport={handleExport}
           />
         ) : (
           <ExtractModule

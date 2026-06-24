@@ -45,4 +45,10 @@ export const TOOL_DEFINITIONS: Record<
     exportFile: "取最新行结果.xlsx",
     exportSheet: "取最新行",
   },
+  merge: {
+    title: "多表合并",
+    heading: "多表合并",
+    exportFile: "多表合并结果.xlsx",
+    exportSheet: "合并结果",
+  },
 };
