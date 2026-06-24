@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { Download, FileSpreadsheet, Loader2, Plus, Upload, X } from "lucide-react";
+import { ArrowRight, Loader2, Plus, Upload, X } from "lucide-react";
 import type { MergeTableRuntime, MetricTuple, OutputRow, TableSlot, WorkbookState } from "@/app/types";
-import { FieldSelect } from "@/app/components/FieldSelect";
 import { MAX_PREVIEW_ROWS, ResultPanel } from "@/app/components/ResultPanel";
 import { TableCard } from "@/app/components/TableCard";
 import { getTableTone, TableTitleChip } from "@/app/components/TableTitleChip";
@@ -46,16 +45,33 @@ export function MergeModule({
 }) {
   const canMerge = baseColumns.length > 0 && result.sourceTableCount > 0;
   const configuredMappings = Object.entries(fieldMapping);
-  const unmatchedFieldSources = useMemo(() => {
+  const mappingRows = useMemo(
+    () => {
+      const visibleFields = new Set([
+        ...result.unmatchedFields,
+        ...configuredMappings.map(([sourceField]) => sourceField),
+      ]);
+      const sourceFieldOrder = Array.from(
+        new Set([
+          ...tables.flatMap((table) => table.columns),
+          ...configuredMappings.map(([sourceField]) => sourceField),
+        ]),
+      );
+
+      return sourceFieldOrder.filter((field) => visibleFields.has(field));
+    },
+    [configuredMappings, result.unmatchedFields, tables],
+  );
+  const fieldSources = useMemo(() => {
     const map = new Map<string, string[]>();
-    result.unmatchedFields.forEach((field) => {
+    mappingRows.forEach((field) => {
       const sources = tables
         .filter((table) => table.columns.includes(field))
-        .map((table) => table.title);
+        .map((table) => table.workbook?.name ?? table.title);
       map.set(field, sources);
     });
     return map;
-  }, [result.unmatchedFields, tables]);
+  }, [mappingRows, tables]);
 
   return (
     <>
@@ -130,61 +146,85 @@ export function MergeModule({
               来源字段会按名称自动匹配基准字段；未匹配的字段可手动指定对应关系。
             </p>
 
-            {configuredMappings.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {configuredMappings.map(([sourceField, baseField]) => (
-                  <span
-                    key={sourceField}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-field-soft px-3 py-1.5 text-xs font-bold text-field ring-1 ring-inset ring-field/15"
-                  >
-                    {sourceField} → {baseField}
-                    <button
-                      className="grid h-4 w-4 place-items-center rounded-full transition hover:bg-field/15"
-                      type="button"
-                      onClick={() => onRemoveFieldMapping(sourceField)}
-                      title="移除映射"
-                      aria-label="移除映射"
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {result.unmatchedFields.length > 0 ? (
-              <div className="mt-3 grid gap-2">
-                {result.unmatchedFields.map((field) => (
-                  <div
-                    key={field}
-                    className="flex items-center gap-3 rounded-2xl border border-line bg-paper/70 p-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-slate-800">
-                        {field}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        来自 {unmatchedFieldSources.get(field)?.join("、")}
-                      </p>
-                    </div>
-                    <div className="w-44 shrink-0">
-                      <FieldSelect
-                        label="映射为"
-                        disabled={false}
-                        value={fieldMapping[field] ?? ""}
-                        placeholder="选择基准字段"
-                        options={baseColumns}
-                        onChange={(value) => onFieldMapping(field, value)}
-                      />
-                    </div>
+            {mappingRows.length > 0 ? (
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-line bg-paper/60">
+                <div className="min-w-[680px]">
+                  <div className="grid grid-cols-[minmax(220px,1fr)_96px_minmax(220px,280px)_36px] items-center gap-3 border-b border-line px-4 py-2 text-[11px] font-bold text-slate-400">
+                    <span>来源字段</span>
+                    <span className="text-center">关系</span>
+                    <span>基准字段</span>
+                    <span className="sr-only">操作</span>
                   </div>
-                ))}
+                  <div className="divide-y divide-line/80">
+                    {mappingRows.map((field) => {
+                      const mappedField = fieldMapping[field] ?? "";
+                      const sources = fieldSources.get(field);
+
+                      return (
+                        <div
+                          key={field}
+                          className="grid grid-cols-[minmax(220px,1fr)_96px_minmax(220px,280px)_36px] items-center gap-3 px-4 py-3 transition hover:bg-white/70"
+                        >
+                          <div className="flex min-w-0 items-baseline gap-3">
+                            <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800" title={field}>
+                              {field}
+                            </span>
+                            <span
+                              className="max-w-[45%] shrink-0 truncate text-xs font-semibold text-slate-500"
+                              title={sources && sources.length > 0 ? sources.join("、") : "手动映射"}
+                            >
+                              来自 {sources && sources.length > 0 ? sources.join("、") : "手动映射"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400">
+                            <ArrowRight size={14} />
+                            <span>映射为</span>
+                          </div>
+                          <select
+                            className="h-10 w-full min-w-0 truncate rounded-xl border border-line bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition hover:border-field/30 focus:border-field focus:ring-4 focus:ring-field-soft"
+                            value={mappedField}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              if (value) {
+                                onFieldMapping(field, value);
+                                return;
+                              }
+                              onRemoveFieldMapping(field);
+                            }}
+                          >
+                            <option value="">选择基准字段</option>
+                            {baseColumns.map((column) => (
+                              <option key={column} value={column}>
+                                {column}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            className={[
+                              "grid h-8 w-8 place-items-center rounded-full text-slate-400 transition",
+                              mappedField
+                                ? "hover:bg-field-soft hover:text-field"
+                                : "pointer-events-none opacity-0",
+                            ].join(" ")}
+                            type="button"
+                            onClick={() => onRemoveFieldMapping(field)}
+                            title="移除映射"
+                            aria-label="移除映射"
+                            disabled={!mappedField}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            ) : configuredMappings.length === 0 ? (
+            ) : (
               <div className="mt-3 grid min-h-16 place-items-center rounded-2xl border border-dashed border-slate-300 bg-paper/70 text-xs font-semibold text-slate-400">
                 所有字段已自动匹配或尚未导入参与表
               </div>
-            ) : null}
+            )}
           </div>
 
           <label className="flex h-11 cursor-pointer select-none items-center gap-2.5 self-start rounded-2xl bg-slate-100 px-4 ring-1 ring-inset ring-slate-200/70 transition hover:bg-slate-200/70">
