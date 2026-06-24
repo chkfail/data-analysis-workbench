@@ -15,6 +15,12 @@ export const TOOL_DEFINITIONS: Record<
     exportFile: "多表碰撞结果.xlsx",
     exportSheet: "碰撞结果",
   },
+  merge: {
+    title: "多表合并",
+    heading: "多表合并",
+    exportFile: "多表合并结果.xlsx",
+    exportSheet: "合并结果",
+  },
   extract: {
     title: "智能提取",
     heading: "智能提取",
@@ -44,11 +50,5 @@ export const TOOL_DEFINITIONS: Record<
     heading: "取最新行",
     exportFile: "取最新行结果.xlsx",
     exportSheet: "取最新行",
-  },
-  merge: {
-    title: "多表合并",
-    heading: "多表合并",
-    exportFile: "多表合并结果.xlsx",
-    exportSheet: "合并结果",
   },
 };

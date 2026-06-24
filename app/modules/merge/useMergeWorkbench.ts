@@ -10,10 +10,7 @@ import type {
 import { buildMergeResult } from "@/app/lib/merge";
 import { getColumns, parseWorkbook } from "@/app/lib/workbook";
 
-const initialMergeTables: MergeTableState[] = [
-  { id: "merge-1", title: "参与表 A", workbook: null },
-  { id: "merge-2", title: "参与表 B", workbook: null },
-];
+const initialMergeTables: MergeTableState[] = [];
 
 function getMergeTableTitle(index: number) {
   return `参与表 ${String.fromCharCode(65 + index)}`;
@@ -53,6 +50,13 @@ export function useMergeWorkbench({
     return getColumns(rows);
   }, [baseBook]);
 
+  const baseRows = useMemo(() => {
+    if (!baseBook) return [];
+    return baseBook.sheets[baseBook.activeSheet] ?? [];
+  }, [baseBook]);
+
+  const baseSourceName = useMemo(() => baseBook?.name ?? "基准表", [baseBook]);
+
   const runtimeTables = useMemo(
     () =>
       mergeTables.map((table) => {
@@ -77,11 +81,13 @@ export function useMergeWorkbench({
     () =>
       buildMergeResult({
         baseColumns,
+        baseRows,
+        baseSourceName,
         tables: runtimeTables,
         fieldMapping,
         deduplicate,
       }),
-    [baseColumns, runtimeTables, fieldMapping, deduplicate],
+    [baseColumns, baseRows, baseSourceName, runtimeTables, fieldMapping, deduplicate],
   );
 
   async function handleFile(slot: TableSlot, file?: File) {

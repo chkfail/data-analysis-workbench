@@ -8,6 +8,8 @@ import { normalizeKey } from "@/app/lib/workbook";
 
 export type MergeOptions = {
   baseColumns: string[];
+  baseRows: DataRow[];
+  baseSourceName: string;
   tables: MergeTableRuntime[];
   fieldMapping: MergeFieldMapping;
   deduplicate: boolean;
@@ -18,6 +20,7 @@ export type MergeResult = {
   columns: string[];
   sourceRowCount: number;
   sourceTableCount: number;
+  baseRowCount: number;
   unmatchedFields: string[];
   duplicateRowCount: number;
 };
@@ -73,16 +76,10 @@ function collectUnmatchedFields(
   );
 }
 
-function rowsAreEqual(
-  left: Record<string, string>,
-  right: Record<string, string>,
-  columns: string[],
-): boolean {
-  return columns.every((column) => left[column] === right[column]);
-}
-
 export function buildMergeResult({
   baseColumns,
+  baseRows,
+  baseSourceName,
   tables,
   fieldMapping,
   deduplicate,
@@ -92,6 +89,18 @@ export function buildMergeResult({
   const unmatchedFieldSet = new Set<string>();
   let sourceRowCount = 0;
   let sourceTableCount = 0;
+
+  baseRows.forEach((row, index) => {
+    const outputData: Record<string, string> = {};
+    baseColumns.forEach((column) => {
+      outputData[column] = String(row[column] ?? "");
+    });
+    outputData[SOURCE_COLUMN] = baseSourceName;
+    mergedRows.push({
+      id: `base-${index}`,
+      data: outputData,
+    });
+  });
 
   tables.forEach((table) => {
     if (!table.workbook) return;
@@ -163,6 +172,7 @@ export function buildMergeResult({
       columns: outputColumns,
       sourceRowCount,
       sourceTableCount,
+      baseRowCount: baseRows.length,
       unmatchedFields: Array.from(unmatchedFieldSet),
       duplicateRowCount,
     };
@@ -173,6 +183,7 @@ export function buildMergeResult({
     columns: outputColumns,
     sourceRowCount,
     sourceTableCount,
+    baseRowCount: baseRows.length,
     unmatchedFields: Array.from(unmatchedFieldSet),
     duplicateRowCount: 0,
   };

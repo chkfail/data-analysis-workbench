@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Download, FileSpreadsheet, Loader2, Plus, Upload, X } from "lucide-react";
 import type { MergeTableRuntime, MetricTuple, OutputRow, TableSlot, WorkbookState } from "@/app/types";
 import { FieldSelect } from "@/app/components/FieldSelect";
@@ -45,6 +46,16 @@ export function MergeModule({
 }) {
   const canMerge = baseColumns.length > 0 && result.sourceTableCount > 0;
   const configuredMappings = Object.entries(fieldMapping);
+  const unmatchedFieldSources = useMemo(() => {
+    const map = new Map<string, string[]>();
+    result.unmatchedFields.forEach((field) => {
+      const sources = tables
+        .filter((table) => table.columns.includes(field))
+        .map((table) => table.title);
+      map.set(field, sources);
+    });
+    return map;
+  }, [result.unmatchedFields, tables]);
 
   return (
     <>
@@ -80,23 +91,32 @@ export function MergeModule({
         ))}
 
         <label
-          className="group grid h-[220px] w-[min(42vw,170px)] shrink-0 cursor-pointer place-items-center rounded-card border border-dashed border-slate-300 bg-white/50 text-slate-500 transition hover:border-field hover:bg-field-soft hover:text-field lg:w-[170px]"
-          aria-label="添加表"
-          title="添加表"
+          className={[
+            "group grid h-[220px] w-[min(42vw,170px)] shrink-0 place-items-center gap-1 rounded-card border border-dashed border-slate-300 bg-white/50 text-slate-500 transition lg:w-[170px]",
+            baseBook
+              ? "cursor-pointer hover:border-field hover:bg-field-soft hover:text-field"
+              : "cursor-not-allowed opacity-60",
+          ].join(" ")}
+          aria-label="批量添加参与表"
+          title={baseBook ? "批量添加参与表" : "请先上传基准表"}
         >
           {isAddingFiles ? (
             <Loader2 className="animate-spin" size={24} />
           ) : (
-            <Plus size={24} className="transition group-hover:rotate-90" />
+            <Plus size={24} className={baseBook ? "transition group-hover:rotate-90" : ""} />
           )}
           <span className="text-sm font-bold">
-            {isAddingFiles ? "解析中" : "添加表"}
+            {isAddingFiles ? "解析中" : "批量添加表"}
+          </span>
+          <span className="px-2 text-center text-[10px] font-semibold leading-tight opacity-70">
+            {baseBook ? "按住 Ctrl/Cmd 多选" : "请先上传基准表"}
           </span>
           <input
             className="sr-only"
             accept=".xlsx,.csv"
             type="file"
             multiple
+            disabled={!baseBook}
             onChange={(event) => onAddFiles(event.target.files)}
           />
         </label>
@@ -133,17 +153,31 @@ export function MergeModule({
             ) : null}
 
             {result.unmatchedFields.length > 0 ? (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-3 grid gap-2">
                 {result.unmatchedFields.map((field) => (
-                  <FieldSelect
+                  <div
                     key={field}
-                    label={field}
-                    disabled={false}
-                    value={fieldMapping[field] ?? ""}
-                    placeholder="选择对应基准字段"
-                    options={baseColumns}
-                    onChange={(value) => onFieldMapping(field, value)}
-                  />
+                    className="flex items-center gap-3 rounded-2xl border border-line bg-paper/70 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-800">
+                        {field}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">
+                        来自 {unmatchedFieldSources.get(field)?.join("、")}
+                      </p>
+                    </div>
+                    <div className="w-44 shrink-0">
+                      <FieldSelect
+                        label="映射为"
+                        disabled={false}
+                        value={fieldMapping[field] ?? ""}
+                        placeholder="选择基准字段"
+                        options={baseColumns}
+                        onChange={(value) => onFieldMapping(field, value)}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : configuredMappings.length === 0 ? (
@@ -183,8 +217,10 @@ export function MergeModule({
         }
         metrics={[
           ["基准字段", baseColumns.length, "个"],
+          ["基准数据", result.baseRowCount, "行"],
           ["参与表", result.sourceTableCount, "张"],
-          ["原始行数", result.sourceRowCount, "行"],
+          ["参与表行数", result.sourceRowCount, "行"],
+          ["原始行数", result.baseRowCount + result.sourceRowCount, "行"],
           ["合并行数", result.rows.length, "行"],
           ...(deduplicate
             ? [["去重移除", result.duplicateRowCount, "行"] as MetricTuple]
