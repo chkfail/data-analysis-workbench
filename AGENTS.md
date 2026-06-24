@@ -7,7 +7,7 @@
 - 项目名：`data-analysis-workbench`
 - 产品名：`数据研判工具箱`
 - 技术栈：Next.js App Router、TypeScript、Tailwind CSS。
-- 核心依赖：`next`、`react`、`xlsx`、`lucide-react`。
+- 核心依赖：`next`、`react`、`exceljs`、`lucide-react`。
 - 这是一个面向 Excel/CSV 的本地数据研判工具台，不是营销页。第一屏应直接呈现可操作工具。
 - 项目 icon 位于 `public/icon.svg`，同时作为 favicon 使用。
 - 推荐终端：`C:\Program Files\Git\bin\bash.exe`。当前 Codex Windows PowerShell 沙箱偶尔会启动失败，必要时使用受控提权执行本地命令。
