@@ -4,7 +4,9 @@ import type { MergeTableRuntime, MetricTuple, OutputRow, TableSlot, WorkbookStat
 import { MAX_PREVIEW_ROWS, ResultPanel } from "@/app/components/ResultPanel";
 import { TableCard } from "@/app/components/TableCard";
 import { getTableTone, TableTitleChip } from "@/app/components/TableTitleChip";
+import { HeaderRowControl } from "@/app/components/HeaderRowControl";
 import type { MergeResult } from "@/app/lib/merge";
+import { ACCEPTED_FILE_TYPES, getSheetRowLimit } from "@/app/lib/workbook";
 
 export function MergeModule({
   baseBook,
@@ -16,6 +18,7 @@ export function MergeModule({
   result,
   onFile,
   onBaseSheet,
+  onHeaderRow,
   onAddTable,
   onAddFiles,
   onRemoveTable,
@@ -24,6 +27,7 @@ export function MergeModule({
   onDeduplicate,
   onExport,
   isAddingFiles,
+  computation,
 }: {
   baseBook: WorkbookState | null;
   tables: MergeTableRuntime[];
@@ -35,6 +39,7 @@ export function MergeModule({
   isAddingFiles: boolean;
   onFile: (slot: TableSlot, file?: File) => void;
   onBaseSheet: (sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onAddTable: () => void;
   onAddFiles: (files: FileList | null) => void;
   onRemoveTable: (slot: TableSlot) => void;
@@ -42,6 +47,7 @@ export function MergeModule({
   onRemoveFieldMapping: (sourceField: string) => void;
   onDeduplicate: (value: boolean) => void;
   onExport: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canMerge = baseColumns.length > 0 && result.sourceTableCount > 0;
   const configuredMappings = Object.entries(fieldMapping);
@@ -88,6 +94,7 @@ export function MergeModule({
             hideColumnPreview
             onFile={onFile}
             onSheet={(_, sheet) => onBaseSheet(sheet)}
+            onHeaderRow={onHeaderRow}
           />
         </div>
 
@@ -101,6 +108,7 @@ export function MergeModule({
               loading={loadingSlot === table.id}
               removable={tables.length > 1}
               onFile={onFile}
+              onHeaderRow={onHeaderRow}
               onRemove={onRemoveTable}
             />
           </div>
@@ -129,7 +137,7 @@ export function MergeModule({
           </span>
           <input
             className="sr-only"
-            accept=".xlsx,.csv"
+            accept={ACCEPTED_FILE_TYPES}
             type="file"
             multiple
             disabled={!baseBook}
@@ -267,6 +275,7 @@ export function MergeModule({
             : []),
           ["未匹配字段", result.unmatchedFields.length, "个"],
         ]}
+        computation={computation}
         onExport={onExport}
         renderCell={(row: OutputRow, column: string) => row.data[column]}
       />
@@ -279,12 +288,14 @@ function MergeTableCard({
   loading,
   removable,
   onFile,
+  onHeaderRow,
   onRemove,
 }: {
   table: MergeTableRuntime;
   loading: boolean;
   removable: boolean;
   onFile: (slot: TableSlot, file?: File) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onRemove: (slot: TableSlot) => void;
 }) {
   const sheetNames = table.workbook ? Object.keys(table.workbook.sheets) : [];
@@ -299,10 +310,17 @@ function MergeTableCard({
             {table.workbook?.name ?? "未导入"}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
             {table.rows.length.toLocaleString("zh-CN")} 行
           </span>
+          {table.workbook && sheetNames.length > 0 ? (
+            <HeaderRowControl
+              value={table.workbook.headerRows[sheetNames[0]] ?? 1}
+              max={Math.max(...sheetNames.map((sheet) => getSheetRowLimit(table.workbook!, sheet)))}
+              onChange={(headerRow) => onHeaderRow(table.id, headerRow)}
+            />
+          ) : null}
           {table.workbook ? <FileInput compact slot={table.id} tone={tone} onFile={onFile} /> : null}
           {removable ? (
             <button
@@ -325,7 +343,7 @@ function MergeTableCard({
             <span>{loading ? "解析中" : "导入表格"}</span>
             <input
               className="sr-only"
-              accept=".xlsx,.csv"
+              accept={ACCEPTED_FILE_TYPES}
               type="file"
               onChange={(event) => onFile(table.id, event.target.files?.[0])}
             />
@@ -370,7 +388,7 @@ function FileInput({
       {compact ? "更换" : "导入"}
       <input
         className="sr-only"
-        accept=".xlsx,.csv"
+        accept={ACCEPTED_FILE_TYPES}
         type="file"
         onChange={(event) => onFile(slot, event.target.files?.[0])}
       />

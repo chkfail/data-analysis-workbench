@@ -2,12 +2,15 @@
 
 import { useMemo, useState } from "react";
 import type { SearchTableState, TableSlot } from "@/app/types";
+import { TOOL_DEFINITIONS } from "@/app/config/tools";
+import { useComputation } from "@/app/hooks/useComputation";
+import { loadWorkbookFile, type WorkbenchContext } from "@/app/hooks/useWorkbookSlot";
 import {
-  buildSearchResult,
+  EMPTY_SEARCH_RESULT,
   downloadSearchWorkbook,
   type SearchMode,
 } from "@/app/lib/search";
-import { parseWorkbook } from "@/app/lib/workbook";
+import { applyHeaderRow } from "@/app/lib/workbook";
 
 const initialSearchTables: SearchTableState[] = [
   { id: "search-1", title: "检索表 A", workbook: null, selectedSheets: [] },
@@ -22,15 +25,7 @@ export function isSearchSlot(slot: TableSlot): slot is `search-${string}` {
   return slot.startsWith("search-");
 }
 
-export function useSearchWorkbench({
-  exportFile,
-  setError,
-  setLoadingSlot,
-}: {
-  exportFile: string;
-  setError: (error: string) => void;
-  setLoadingSlot: (slot: TableSlot | null) => void;
-}) {
+export function useSearchWorkbench(context: WorkbenchContext) {
   const [tables, setTables] = useState<SearchTableState[]>(initialSearchTables);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("contains");
@@ -47,35 +42,64 @@ export function useSearchWorkbench({
       })),
     [tables],
   );
-  const result = useMemo(
-    () => buildSearchResult({ tables: runtimeTables, query, mode, caseSensitive }),
-    [runtimeTables, query, mode, caseSensitive],
-  );
+  const input = useMemo(() => {
+    if (!query.trim()) return null;
+    // 只把选中的工作表交给 Worker，不传原始二维数组
+    const tables = runtimeTables.map((table) => ({
+      ...table,
+      workbook: table.workbook
+        ? {
+            ...table.workbook,
+            raw: {},
+            sheets: Object.fromEntries(
+              table.selectedSheets.map((sheet) => [sheet, table.workbook?.sheets[sheet] ?? []]),
+            ),
+          }
+        : null,
+    }));
+    return { tables, query, mode, caseSensitive };
+  }, [runtimeTables, query, mode, caseSensitive]);
+  const computation = useComputation("search", input, EMPTY_SEARCH_RESULT, {
+    delay: 250,
+    onError: context.setError,
+  });
+  // 未输入要素时也要展示选中的表/工作表/行数
+  const result = input
+    ? computation.result
+    : {
+        ...EMPTY_SEARCH_RESULT,
+        sourceTableCount: runtimeTables.filter((table) => table.workbook).length,
+        sourceSheetCount: runtimeTables.reduce((sum, table) => sum + (table.workbook ? table.selectedSheets.length : 0), 0),
+        sourceRowCount: runtimeTables.reduce((sum, table) => sum + (table.workbook ? table.selectedRowCount : 0), 0),
+      };
 
   async function handleFile(slot: TableSlot, file?: File) {
     if (!file || !isSearchSlot(slot)) return;
 
-    setError("");
-    setLoadingSlot(slot);
+    const workbook = await loadWorkbookFile(slot, file, context);
+    if (!workbook) return;
+    setTables((currentTables) =>
+      currentTables.map((table) =>
+        table.id === slot
+          ? {
+              ...table,
+              workbook,
+              selectedSheets: Object.keys(workbook.sheets),
+            }
+          : table,
+      ),
+    );
+  }
 
-    try {
-      const workbook = await parseWorkbook(file);
-      setTables((currentTables) =>
-        currentTables.map((table) =>
-          table.id === slot
-            ? {
-                ...table,
-                workbook,
-                selectedSheets: Object.keys(workbook.sheets),
-              }
-            : table,
-        ),
-      );
-    } catch {
-      setError("文件解析失败，请上传 .xlsx / .csv 文件。");
-    } finally {
-      setLoadingSlot(null);
-    }
+  // 检索表可多选工作表，表头行统一应用到该文件的全部工作表
+  function updateHeaderRow(slot: TableSlot, headerRow: number) {
+    setTables((currentTables) =>
+      currentTables.map((table) =>
+        table.id === slot && table.workbook
+          ? { ...table, workbook: applyHeaderRow(table.workbook, headerRow) }
+          : table,
+      ),
+    );
   }
 
   function toggleSheet(slot: TableSlot, sheet: string) {
@@ -117,7 +141,7 @@ export function useSearchWorkbench({
   }
 
   async function exportResult() {
-    await downloadSearchWorkbook(exportFile, result.exportSheets);
+    await downloadSearchWorkbook(TOOL_DEFINITIONS.search.exportFile, result.exportSheets);
   }
 
   return {
@@ -126,11 +150,13 @@ export function useSearchWorkbench({
     mode,
     caseSensitive,
     result,
+    computation,
     setQuery,
     setMode,
     setCaseSensitive,
     handleFile,
     toggleSheet,
+    updateHeaderRow,
     addTable,
     removeTable,
     exportResult,

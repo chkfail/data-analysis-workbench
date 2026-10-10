@@ -1,6 +1,9 @@
 import type { DataRow, DiffRow, DiffRowStatus } from "@/app/types";
 import { formatValue } from "@/app/lib/workbook";
 
+/** 按内容比对时，剩余行配成"修改"所需的最低字段一致比例 */
+const CONTENT_MATCH_THRESHOLD = 0.7;
+
 export type DiffMapping = {
   oldFields: string[];
   newFields: string[];
@@ -16,7 +19,7 @@ export type DiffResult = {
   duplicateKeyCount: number;
 };
 
-const emptyResult: DiffResult = {
+export const EMPTY_DIFF_RESULT: DiffResult = {
   rows: [],
   columns: [],
   addedCount: 0,
@@ -46,7 +49,7 @@ export function buildKeyedDiffResult({
     mapping.oldFields.length === 0 ||
     mapping.newFields.length === 0
   ) {
-    return emptyResult;
+    return EMPTY_DIFF_RESULT;
   }
 
   const columns = buildOutputColumns(oldColumns, newColumns);
@@ -135,7 +138,7 @@ export function buildUnkeyedDiffResult({
   newColumns: string[];
   caseSensitive: boolean;
 }): DiffResult {
-  if (oldRows.length === 0 && newRows.length === 0) return emptyResult;
+  if (oldRows.length === 0 && newRows.length === 0) return EMPTY_DIFF_RESULT;
 
   const columns = buildOutputColumns(oldColumns, newColumns);
   const compareColumns = buildComparableColumns(
@@ -362,23 +365,58 @@ function matchRowsByContent(
     pairs.push({ oldIndex, newIndex });
   });
 
+  // 相似度 = 相等字段数 / 可比字段数，配对门槛 0.7。旧行有 n 个非空值时，
+  // 候选新行至少要有 k = ceil(0.7n) 个值相等；按鸽巢原理，它必然命中旧行
+  // 最稀有的 n-k+1 个值之一。只查这些值的倒排表，结果与逐行全量比较一致。
+  const postings = new Map<string, number[]>();
+  newRows.forEach((row, newIndex) => {
+    if (matchedNew.has(newIndex)) return;
+    columns.forEach((column) => {
+      const value = normalizeValue(row[column], caseSensitive);
+      if (!value) return;
+      const key = `${column}\u0000${value}`;
+      const list = postings.get(key);
+      if (list) list.push(newIndex);
+      else postings.set(key, [newIndex]);
+    });
+  });
+
   oldRows.forEach((oldRow, oldIndex) => {
     if (matchedOld.has(oldIndex)) return;
 
-    let bestMatch: { newIndex: number; score: number } | null = null;
-    for (let newIndex = 0; newIndex < newRows.length; newIndex += 1) {
-      if (matchedNew.has(newIndex)) continue;
-      const newRow = newRows[newIndex];
-      const score = rowSimilarity(oldRow, newRow, columns, caseSensitive);
-      if (!bestMatch || score > bestMatch.score) {
-        bestMatch = { newIndex, score };
-      }
-    }
+    const keys = columns.flatMap((column) => {
+      const value = normalizeValue(oldRow[column], caseSensitive);
+      return value ? [`${column}\u0000${value}`] : [];
+    });
+    if (keys.length === 0) return;
 
-    if (bestMatch && bestMatch.score >= 0.7) {
+    const required = Math.ceil(keys.length * CONTENT_MATCH_THRESHOLD - 1e-9);
+    const probeKeys = keys
+      .map((key) => ({ key, size: postings.get(key)?.length ?? 0 }))
+      .sort((a, b) => a.size - b.size)
+      .slice(0, keys.length - required + 1);
+    const candidates = new Set<number>();
+    probeKeys.forEach(({ key }) => {
+      postings.get(key)?.forEach((newIndex) => {
+        if (!matchedNew.has(newIndex)) candidates.add(newIndex);
+      });
+    });
+
+    let bestMatch: { newIndex: number; score: number } | null = null;
+    Array.from(candidates)
+      .sort((a, b) => a - b)
+      .forEach((newIndex) => {
+        const score = rowSimilarity(oldRow, newRows[newIndex], columns, caseSensitive);
+        if (!bestMatch || score > bestMatch.score) {
+          bestMatch = { newIndex, score };
+        }
+      });
+
+    const best = bestMatch as { newIndex: number; score: number } | null;
+    if (best && best.score >= CONTENT_MATCH_THRESHOLD) {
       matchedOld.add(oldIndex);
-      matchedNew.add(bestMatch.newIndex);
-      pairs.push({ oldIndex, newIndex: bestMatch.newIndex });
+      matchedNew.add(best.newIndex);
+      pairs.push({ oldIndex, newIndex: best.newIndex });
     }
   });
 

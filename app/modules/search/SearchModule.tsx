@@ -3,7 +3,9 @@ import type { OutputRow, SearchTableRuntime, TableSlot } from "@/app/types";
 import { cellMatchesSearch, type SearchMode, type SearchResult } from "@/app/lib/search";
 import { MetricChip } from "@/app/components/MetricChip";
 import { ModeButton } from "@/app/components/ModeButton";
-import { MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
+import { HeaderRowControl } from "@/app/components/HeaderRowControl";
+import { ComputationStatus, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
+import { ACCEPTED_FILE_TYPES, getSheetRowLimit } from "@/app/lib/workbook";
 import { getTableTone, TableTitleChip } from "@/app/components/TableTitleChip";
 
 export function SearchModule({
@@ -17,9 +19,11 @@ export function SearchModule({
   onMode,
   onFile,
   onSheet,
+  onHeaderRow,
   onAddTable,
   onRemoveTable,
   onExport,
+  computation,
 }: {
   tables: SearchTableRuntime[];
   query: string;
@@ -31,9 +35,11 @@ export function SearchModule({
   onMode: (mode: SearchMode) => void;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onAddTable: () => void;
   onRemoveTable: (slot: TableSlot) => void;
   onExport: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canSearch = result.sourceSheetCount > 0 && query.trim().length > 0;
 
@@ -48,6 +54,7 @@ export function SearchModule({
               removable={tables.length > 1}
               onFile={onFile}
               onSheet={onSheet}
+              onHeaderRow={onHeaderRow}
               onRemove={onRemoveTable}
             />
           </div>
@@ -110,16 +117,19 @@ export function SearchModule({
               </div>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+          <ComputationStatus computation={computation} />
           <button
             className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-field px-4 text-xs font-bold text-white shadow-lg shadow-field/30 transition hover:bg-field-deep disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             type="button"
-            disabled={result.exportSheets.length === 0}
+            disabled={result.exportSheets.length === 0 || computation.pending}
             onClick={onExport}
             title="导出命中原表"
           >
             <Download size={15} />
             导出命中原表
           </button>
+          </div>
         </div>
 
         {canSearch && result.sheets.length > 0 ? (
@@ -162,6 +172,7 @@ function SearchTableCard({
   removable,
   onFile,
   onSheet,
+  onHeaderRow,
   onRemove,
 }: {
   table: SearchTableRuntime;
@@ -169,6 +180,7 @@ function SearchTableCard({
   removable: boolean;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onRemove: (slot: TableSlot) => void;
 }) {
   const sheetNames = table.workbook ? Object.keys(table.workbook.sheets) : [];
@@ -183,10 +195,17 @@ function SearchTableCard({
             {table.workbook?.name ?? "未导入"}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
             {table.selectedRowCount.toLocaleString("zh-CN")} 行
           </span>
+          {table.workbook && sheetNames.length > 0 ? (
+            <HeaderRowControl
+              value={table.workbook.headerRows[sheetNames[0]] ?? 1}
+              max={Math.max(...sheetNames.map((sheet) => getSheetRowLimit(table.workbook!, sheet)))}
+              onChange={(headerRow) => onHeaderRow(table.id, headerRow)}
+            />
+          ) : null}
           {table.workbook ? <FileInput compact slot={table.id} tone={tone} onFile={onFile} /> : null}
           {removable ? (
             <button
@@ -209,7 +228,7 @@ function SearchTableCard({
             <span>{loading ? "解析中" : "导入表格"}</span>
             <input
               className="sr-only"
-              accept=".xlsx,.csv"
+              accept={ACCEPTED_FILE_TYPES}
               type="file"
               onChange={(event) => onFile(table.id, event.target.files?.[0])}
             />
@@ -369,7 +388,7 @@ function FileInput({
       {compact ? "更换" : "导入"}
       <input
         className="sr-only"
-        accept=".xlsx,.csv"
+        accept={ACCEPTED_FILE_TYPES}
         type="file"
         onChange={(event) => onFile(slot, event.target.files?.[0])}
       />

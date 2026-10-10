@@ -1,5 +1,6 @@
 import { Plus, X } from "lucide-react";
 import type { CollisionTableRuntime, JoinedRow, MatchMode, MetricTuple, TableSlot } from "@/app/types";
+import { MAX_COLLISION_ROWS, type CollisionResult } from "@/app/lib/collision";
 import { FieldSelect } from "@/app/components/FieldSelect";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
 import { StatusBadge } from "@/app/components/StatusBadge";
@@ -13,21 +14,25 @@ export function CollisionModule({
   matchMode,
   onFile,
   onSheet,
+  onHeaderRow,
   onField,
   onAddTable,
   onRemoveTable,
-  onExport
+  onExport,
+  computation
 }: {
   tables: CollisionTableRuntime[];
   loadingSlot: TableSlot | null;
-  result: { rows: JoinedRow[]; columns: string[]; matched: number; leftOnly: number };
+  result: CollisionResult;
   matchMode: MatchMode;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onField: (slot: TableSlot, field: string) => void;
   onAddTable: () => void;
   onRemoveTable: (slot: TableSlot) => void;
   onExport: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canJoin = tables.length >= 2 && tables.every((table) => table.workbook && table.field);
   const tableMetrics: MetricTuple[] = [["参与表", tables.length, "张"], ...tables.map((table) => [table.title, table.rows.length, "行"] as MetricTuple)];
@@ -50,6 +55,7 @@ export function CollisionModule({
               controlGridClass="sm:grid-cols-2"
               onFile={onFile}
               onSheet={onSheet}
+              onHeaderRow={onHeaderRow}
               headerAction={
                 index >= 2 ? (
                   <button
@@ -101,6 +107,12 @@ export function CollisionModule({
         metrics={[...tableMetrics, ...resultMetrics]}
         metricRows={[tableMetrics, resultMetrics]}
         note="已按整行去重"
+        warning={
+          result.truncated
+            ? `碰撞字段重复过多，预计 ${result.estimatedRows.toLocaleString("zh-CN")} 行，仅保留前 ${MAX_COLLISION_ROWS.toLocaleString("zh-CN")} 行`
+            : undefined
+        }
+        computation={computation}
         onExport={onExport}
         renderCell={(row, column) => (column === "状态" ? <StatusBadge status={(row as JoinedRow).status} /> : row.data[column])}
       />

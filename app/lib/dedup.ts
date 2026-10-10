@@ -2,7 +2,7 @@ import type { DataRow, OutputRow } from "@/app/types";
 import { formatValue } from "@/app/lib/workbook";
 
 export type DedupMode = "levenshtein" | "bigram";
-export type BlockSize = "first-char" | "first-2-chars";
+export type BlockSize = "first-char" | "first-2-chars" | "none";
 
 export type DedupResult = {
   rows: OutputRow[];
@@ -13,10 +13,21 @@ export type DedupResult = {
   sourceCount: number;
 };
 
+export const EMPTY_DEDUP_RESULT: DedupResult = {
+  rows: [],
+  columns: [],
+  clusterCount: 0,
+  involvedCount: 0,
+  recommendedCount: 0,
+  sourceCount: 0,
+};
+
 /**
- * 分块键：按首字或首 2 字切分，限制全量比较范围。
+ * 分块键：按首字或首 2 字切分，限制全量比较范围；不分块时所有行两两比较，
+ * 能发现首字有差别的重复（如"张三丰"/"章三丰"），但耗时随行数平方增长。
  */
 function blockKey(value: string, size: BlockSize) {
+  if (size === "none") return "";
   const n = size === "first-2-chars" ? 2 : 1;
   return value.slice(0, n);
 }
@@ -284,8 +295,8 @@ export function buildDedupResult({
   });
 
   // 2. 块内两两比较 + Union-Find
+  // 每行只落在一个块里，块内两两比较不会重复
   const uf = new UnionFind();
-  const pairsCompared: Set<string> = new Set();
 
   for (const indices of Array.from(buckets.values())) {
     if (indices.length < 2) continue;
@@ -295,9 +306,6 @@ export function buildDedupResult({
 
       for (let j = i + 1; j < indices.length; j++) {
         const idxB = indices[j];
-        const pairKey = `${Math.min(idxA, idxB)}-${Math.max(idxA, idxB)}`;
-        if (pairsCompared.has(pairKey)) continue;
-        pairsCompared.add(pairKey);
 
         if (!exactFieldsMatch(rows[idxA], rows[idxB], exactFields, caseSensitive)) continue;
 
@@ -314,12 +322,9 @@ export function buildDedupResult({
   const groupMap = new Map<number, number[]>();
   for (let i = 0; i < rows.length; i++) {
     const root = uf.find(i);
-    // 只收集被 union 过的（即至少有一条候选边的）
-    if (uf.find(i) !== i || uf.find(i) === i) {
-      const group = groupMap.get(root) ?? [];
-      group.push(i);
-      groupMap.set(root, group);
-    }
+    const group = groupMap.get(root) ?? [];
+    group.push(i);
+    groupMap.set(root, group);
   }
 
   // 筛选出 size >= 2 的组作为 raw clusters

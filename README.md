@@ -1,6 +1,6 @@
 # 数据研判工具箱
 
-面向 Excel/CSV 的本地数据研判工作台。项目提供多表碰撞、多表合并、智能提取、模糊去重、差异对比、跨表检索和取最新行等常用数据处理工具，所有计算在浏览器本地完成，适合快速完成线索核查、表格比对和结果导出。
+面向 Excel/CSV 的本地数据研判桌面工具（Windows 7–11）。项目提供多表碰撞、多表合并、智能提取、模糊去重、差异对比、跨表检索和取最新行等常用数据处理工具，所有计算在本机完成、完全离线，适合快速完成线索核查、表格比对和结果导出。
 
 ## 功能
 
@@ -22,6 +22,7 @@
 - 结果列带表名前缀（如 `基准表.姓名`、`参与表 A.姓名`），便于区分同名字段。
 - 导出时去掉表名前缀，按二维数组写入，避免同名字段被对象 key 覆盖。
 - 结果按整行去重。
+- 碰撞字段重复过多时，单次最多生成 200,000 行并提示预计行数。
 
 ### 多表合并
 
@@ -47,7 +48,7 @@
 - 单表导入，选择 `匹配字段`，可额外选择 `完全一致字段`。
 - `完全一致字段` 内容必须完全相同，才允许归到同一重复组。
 - 相似度算法：`编辑距离` / `二元组`。
-- 分块粒度：`首字分块` / `首2字分块`。
+- 分块粒度：`首字分块` / `首2字分块` / `不分块`（能发现首字不同的重复，数据多时较慢）。
 - 相似度阈值 50%–95% 可调。
 - 支持 `区分大小写` 开关。
 - 双导出：
@@ -79,68 +80,43 @@
 - 单表导入，选择 `基准字段` 和 `时间字段`。
 - 每个基准字段只保留时间最新的一条记录。
 - 空基准字段忽略，并在结果指标中展示忽略数量。
-- 时间解析兼容 `Date.parse` 和 Excel 序列日期数字。
+- 时间解析支持 Excel 序列日期、`2024-01-02`、`2024/1/2`、`2024年1月2日 10时5分`、`20240102` 等格式；无法解析的行按最旧处理并在指标中提示数量。
 
 ## 特性
 
-- 支持 `.xlsx`、`.csv`。
-- 所有计算在浏览器本地完成，不依赖后端服务，数据不会上传。
-- 统一导出 `.xlsx`，适合继续用 Excel 研判。
-- 多表工具支持横向表卡片布局和追加表。
-- 多个模块支持 `区分大小写` 开关。
+- 支持 `.xlsx`、`.csv`；CSV 自动识别 UTF-8 / GBK 编码和逗号、制表符、分号分隔。
+- 自动识别表头行（跳过标题行、制表信息行），也可在表卡片上手动指定 `表头第 N 行`。
+- 所有计算在 Web Worker 中完成，大表计算时界面不卡顿，可随时取消。
+- 完全离线：桌面端拦截一切网络请求，数据不会离开本机。
+- 统一导出 `.xlsx`：数字写成数字、日期写成 Excel 日期，手机号 / 身份证 / 银行卡等长数字保留文本。
 - 使用二维数组导出，避免同名字段在 Excel 导出时被对象 key 覆盖。
-- 支持 Docker 离线部署包，目标服务器无需 npm、无需联网。
+- 多表工具支持横向表卡片布局和追加表；多个模块支持 `区分大小写` 开关。
 
 ## 快速开始
 
 ```sh
 npm install
-npm run dev
+npm run dev            # 浏览器调试：http://localhost:3000
+npm run electron:dev   # 另开终端，用 Electron 窗口调试
 ```
 
-打开：
-
-```text
-http://localhost:3000
-```
-
-生产构建：
+检查：
 
 ```sh
-npm run build
+npm run typecheck
+npm test
 ```
 
-类型检查：
+## 打包桌面端
 
 ```sh
-npx tsc --noEmit
+npm run electron:start   # 静态导出后直接用 Electron 打开
+npm run dist:electron    # 生成 NSIS 安装包和便携版到 dist/electron/
 ```
 
-## 离线 Docker 部署
-
-打包离线部署包：
-
-```sh
-sh deploy.sh pack
-```
-
-在目标服务器启动：
-
-```sh
-sh deploy.sh start
-```
-
-停止：
-
-```sh
-sh deploy.sh stop
-```
-
-默认端口为宿主机 `3000` 到容器 `3000`。可以通过环境变量覆盖：
-
-```sh
-DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start
-```
+- 基于 Electron 22.3.27（最后一个支持 Win7 的版本），默认打 x64。
+- 静态导出产物 `out/` 通过 `app://bundle/` 自定义协议加载。
+- 更多打包和排障说明见 [AGENTS.md](AGENTS.md#electron-桌面端打包)。
 
 ## 目录结构
 
@@ -149,31 +125,36 @@ app/
   page.tsx                 页面壳、导航、模块挂载
   config/tools.ts          工具注册
   types.ts                 共享类型
-  lib/                     各工具业务计算和 workbook 工具
+  lib/                     各工具业务计算、workbook 工具和单测
   components/              通用 UI 组件
   modules/                 各工具模块 UI
+  hooks/                   计算 Worker 接入、表槽位等通用 hook
+  workers/                 计算 Worker 入口
 public/
   icon.svg                 应用图标和 favicon
-Dockerfile
-docker-compose.yml
-deploy.sh
+electron/
+  main.cjs                 Electron 主进程
+  build-icon.cjs           从 icon.svg 生成 build/icon.ico
+electron-builder.yml       桌面端打包配置
 ```
 
 ## 开发约定
 
-- 新增工具时，在 `app/config/tools.ts` 注册，在 `app/lib/<module>.ts` 放业务计算，在 `app/modules/<module>` 放模块 UI。
-- `app/page.tsx` 只做状态接入和模块挂载，不放复杂算法和大块 UI。
+- 新增工具时，在 `app/config/tools.ts` 注册，在 `app/lib/<module>.ts` 放业务计算并补单测，在 `app/lib/compute.ts` 登记计算任务，在 `app/modules/<module>` 放模块 UI 和 `use<Module>Workbench.ts`。
+- `app/page.tsx` 只做 hook 接入和模块挂载，不放模块状态、复杂算法和大块 UI。
 - UI 保持工具型、低噪音、信息密度适中。
-- 改功能后优先运行 `npx tsc --noEmit`。
+- 改功能后运行 `npm run typecheck` 和 `npm test`。
 - 更多维护约定见 [AGENTS.md](AGENTS.md)。
 
 ## 技术栈
 
-- Next.js App Router
+- Next.js App Router（静态导出）
+- Electron 22
 - TypeScript
 - Tailwind CSS
 - exceljs
 - lucide-react
+- Vitest
 
 ## License
 

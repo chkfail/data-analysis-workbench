@@ -1,4 +1,5 @@
-import type { OutputRow, TableSlot, WorkbookState } from "@/app/types";
+import type { TableSlot, WorkbookState } from "@/app/types";
+import type { LatestResult } from "@/app/lib/latest";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
 import { TableCard } from "@/app/components/TableCard";
 
@@ -12,9 +13,11 @@ export function LatestModule({
   result,
   onFile,
   onSheet,
+  onHeaderRow,
   onBaseField,
   onTimeField,
   onExport,
+  computation,
 }: {
   workbook: WorkbookState | null;
   columns: string[];
@@ -22,17 +25,14 @@ export function LatestModule({
   baseField: string;
   timeField: string;
   loadingSlot: TableSlot | null;
-  result: {
-    rows: OutputRow[];
-    columns: string[];
-    groups: number;
-    ignored: number;
-  };
+  result: LatestResult;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onBaseField: (field: string) => void;
   onTimeField: (field: string) => void;
   onExport: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canPickLatest = Boolean(workbook && baseField && timeField);
 
@@ -56,6 +56,7 @@ export function LatestModule({
           controls={undefined}
           onFile={onFile}
           onSheet={onSheet}
+          onHeaderRow={onHeaderRow}
         />
 
         <article className="panel h-full p-5">
@@ -93,7 +94,9 @@ export function LatestModule({
           ["基准数量", result.groups],
           ["取最新行", result.rows.length],
           ["空基准忽略", result.ignored],
+          ...(result.unparsedTime > 0 ? [["时间无法解析(按最旧)", result.unparsedTime] as [string, number]] : []),
         ]}
+        computation={computation}
         onExport={onExport}
         renderCell={(row, column) => row.data[column]}
       />

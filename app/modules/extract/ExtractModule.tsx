@@ -1,6 +1,8 @@
-import type { MetricTuple, OutputRow, TableSlot, WorkbookState } from "@/app/types";
-import type { ExtractTemplateId } from "@/app/lib/extract";
+import type { MetricTuple, TableSlot, WorkbookState } from "@/app/types";
+import type { ExtractResult, ExtractTemplateId } from "@/app/lib/extract";
 import { EXTRACT_TEMPLATES } from "@/app/lib/extract";
+import { ACCEPTED_FILE_TYPES, getSheetRowLimit } from "@/app/lib/workbook";
+import { HeaderRowControl } from "@/app/components/HeaderRowControl";
 import { Loader2, Upload } from "lucide-react";
 import { FieldSelect } from "@/app/components/FieldSelect";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
@@ -17,10 +19,12 @@ export function ExtractModule({
   result,
   onFile,
   onSheet,
+  onHeaderRow,
   onSourceField,
   onTemplate,
   onCustomPattern,
-  onExport
+  onExport,
+  computation
 }: {
   workbook: WorkbookState | null;
   columns: string[];
@@ -29,13 +33,15 @@ export function ExtractModule({
   templates: ExtractTemplateId[];
   customPattern: string;
   loadingSlot: TableSlot | null;
-  result: { rows: OutputRow[]; columns: string[]; extracted: number; extractedByColumn: Record<string, number>; error: string };
+  result: ExtractResult;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onSourceField: (field: string) => void;
   onTemplate: (template: ExtractTemplateId) => void;
   onCustomPattern: (pattern: string) => void;
   onExport: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canExtract = Boolean(workbook && sourceFields.length > 0 && templates.length > 0 && !result.error && (!templates.includes("custom") || customPattern.trim()));
   const rowCount = workbook ? workbook.sheets[workbook.activeSheet]?.length ?? 0 : 0;
@@ -56,8 +62,15 @@ export function ExtractModule({
                 <TableTitleChip title="数据表" />
                 <h2 className="mt-1 truncate text-lg font-bold text-slate-950">{workbook?.name ?? "未导入"}</h2>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">{rowCount.toLocaleString("zh-CN")} 行</span>
+                {workbook ? (
+                  <HeaderRowControl
+                    value={workbook.headerRows[workbook.activeSheet] ?? 1}
+                    max={getSheetRowLimit(workbook, workbook.activeSheet)}
+                    onChange={(headerRow) => onHeaderRow("extract", headerRow)}
+                  />
+                ) : null}
                 {workbook ? <FileInput compact slot="extract" onFile={onFile} /> : null}
               </div>
             </div>
@@ -149,6 +162,7 @@ export function ExtractModule({
           ["追加字段", Math.max(result.columns.length - columns.length, 0), "个"]
         ]}
         note="结果已追加到原表"
+        computation={computation}
         onExport={onExport}
         renderCell={(row, column) => row.data[column]}
       />
@@ -161,7 +175,7 @@ function FileDrop({ loading, tone, onFile }: { loading: boolean; tone: string; o
     <label className={`group flex min-h-16 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed text-sm font-bold transition ${tone}`}>
       {loading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} className="transition group-hover:-translate-y-0.5" />}
       <span>{loading ? "解析中" : "导入表格"}</span>
-      <input className="sr-only" accept=".xlsx,.csv" type="file" onChange={(event) => onFile("extract", event.target.files?.[0])} />
+      <input className="sr-only" accept={ACCEPTED_FILE_TYPES} type="file" onChange={(event) => onFile("extract", event.target.files?.[0])} />
     </label>
   );
 }
@@ -171,7 +185,7 @@ function FileInput({ compact, slot, onFile }: { compact?: boolean; slot: TableSl
     <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-field px-3 text-xs font-bold text-white shadow-sm shadow-field/40 transition hover:bg-field-deep">
       <Upload size={13} />
       {compact ? "更换" : "导入"}
-      <input className="sr-only" accept=".xlsx,.csv" type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />
+      <input className="sr-only" accept={ACCEPTED_FILE_TYPES} type="file" onChange={(event) => onFile(slot, event.target.files?.[0])} />
     </label>
   );
 }

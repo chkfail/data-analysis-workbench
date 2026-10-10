@@ -27,6 +27,16 @@ export type MergeResult = {
 
 const SOURCE_COLUMN = "来源表名";
 
+export const EMPTY_MERGE_RESULT: MergeResult = {
+  rows: [],
+  columns: [],
+  sourceRowCount: 0,
+  sourceTableCount: 0,
+  baseRowCount: 0,
+  unmatchedFields: [],
+  duplicateRowCount: 0,
+};
+
 function buildColumnMapping(
   baseColumns: string[],
   sourceColumns: string[],

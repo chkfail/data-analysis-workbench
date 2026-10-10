@@ -19,11 +19,17 @@ export type TableSlot =
   | `search-${string}`
   | `collision-${string}`
   | `merge-${string}`;
-export type DataRow = Record<string, string | number | boolean | null>;
+export type CellValue = string | number | boolean | null;
+export type DataRow = Record<string, CellValue>;
 
 export type WorkbookState = {
   name: string;
+  /** 按表头行生成的数据行 */
   sheets: Record<string, DataRow[]>;
+  /** 原始二维数组，用于切换表头行时重建 sheets */
+  raw: Record<string, CellValue[][]>;
+  /** 每个工作表的表头行（1 起计，对应 Excel 行号） */
+  headerRows: Record<string, number>;
   activeSheet: string;
 };
 

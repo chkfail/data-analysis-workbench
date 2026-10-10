@@ -43,6 +43,16 @@ export const EXTRACT_TEMPLATES: Record<
   }
 };
 
+export type ExtractResult = {
+  rows: OutputRow[];
+  columns: string[];
+  extracted: number;
+  extractedByColumn: Record<string, number>;
+  error: string;
+};
+
+export const EMPTY_EXTRACT_RESULT: ExtractResult = { rows: [], columns: [], extracted: 0, extractedByColumn: {}, error: "" };
+
 export function buildExtractResult({
   rows,
   columns,
@@ -55,19 +65,19 @@ export function buildExtractResult({
   sourceFields: string[];
   templates: ExtractTemplateId[];
   customPattern: string;
-}) {
+}): ExtractResult {
   if (rows.length === 0 || columns.length === 0 || sourceFields.length === 0) {
-    return { rows: [] as OutputRow[], columns: [] as string[], extracted: 0, extractedByColumn: {} as Record<string, number>, error: "" };
+    return EMPTY_EXTRACT_RESULT;
   }
 
   if (templates.length === 0) {
-    return { rows: [] as OutputRow[], columns: [] as string[], extracted: 0, extractedByColumn: {} as Record<string, number>, error: "请选择提取模板。" };
+    return { ...EMPTY_EXTRACT_RESULT, error: "请选择提取模板。" };
   }
 
   const configs = templates.map((template) => getExtractConfig(template, customPattern));
   const error = configs.find((config) => config.error)?.error;
   if (error) {
-    return { rows: [] as OutputRow[], columns: [] as string[], extracted: 0, extractedByColumn: {} as Record<string, number>, error };
+    return { ...EMPTY_EXTRACT_RESULT, error };
   }
 
   const rowMatches = rows.map((row) => {
@@ -171,8 +181,11 @@ function parseCustomPattern(input: string) {
   };
 }
 
+const NAMED_GROUP_PATTERN = new RegExp("\\(\\?<([\\p{L}_$][\\p{L}\\p{N}_$]*)>", "gu");
+
 function getNamedGroups(pattern: string) {
-  return Array.from(pattern.matchAll(/\(\?<([A-Za-z_$][\w$]*)>/g), (match) => match[1]);
+  // 分组名允许中文，例如 (?<金额>...)
+  return Array.from(pattern.matchAll(NAMED_GROUP_PATTERN), (match) => match[1]);
 }
 
 function buildNumberedColumns(column: string, count: number) {

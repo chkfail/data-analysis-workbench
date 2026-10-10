@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import type { DataRow, OutputRow, SearchTableRuntime } from "@/app/types";
-import { formatValue, getColumns, safeSheetName } from "@/app/lib/workbook";
+import { formatValue, getColumns, safeSheetName, saveWorkbook, writeWorksheet } from "@/app/lib/workbook";
 
 export type SearchMode = "exact" | "contains" | "fuzzy";
 
@@ -33,6 +33,19 @@ export type SearchResult = {
   sourceTableCount: number;
   sourceSheetCount: number;
   sourceRowCount: number;
+};
+
+export const EMPTY_SEARCH_RESULT: SearchResult = {
+  rows: [],
+  columns: [],
+  sheets: [],
+  exportSheets: [],
+  matchedSheetCount: 0,
+  matchedRowCount: 0,
+  matchedFieldCount: 0,
+  sourceTableCount: 0,
+  sourceSheetCount: 0,
+  sourceRowCount: 0,
 };
 
 export function buildSearchResult({
@@ -139,24 +152,14 @@ export async function downloadSearchWorkbook(filename: string, sheets: SearchExp
     usedNames.add(name);
 
     const worksheet = workbook.addWorksheet(name);
-    worksheet.addRow(sheet.columns);
-    sheet.rows.forEach((row) => {
-      worksheet.addRow(sheet.columns.map((column) => formatValue(row[column])));
-    });
+    writeWorksheet(
+      worksheet,
+      sheet.columns,
+      sheet.rows.map((row) => sheet.columns.map((column) => formatValue(row[column]))),
+    );
   });
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  await saveWorkbook(workbook, filename);
 }
 
 function emptySearchResult({

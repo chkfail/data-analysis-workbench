@@ -1,415 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, X } from "lucide-react";
-import type {
-  CollisionTableState,
-  MatchMode,
-  TableSlot,
-  DiffMode,
-  ToolMode,
-  WorkbookState,
-} from "@/app/types";
+import type { TableSlot, ToolMode } from "@/app/types";
 import { TOOL_DEFINITIONS } from "@/app/config/tools";
 import { AppHeader } from "@/app/components/AppHeader";
 import { ModeButton } from "@/app/components/ModeButton";
 import { CollisionModule } from "@/app/modules/collision/CollisionModule";
+import { useCollisionWorkbench } from "@/app/modules/collision/useCollisionWorkbench";
 import { DedupModule } from "@/app/modules/dedup/DedupModule";
+import { useDedupWorkbench } from "@/app/modules/dedup/useDedupWorkbench";
 import { DiffModule } from "@/app/modules/diff/DiffModule";
+import { useDiffWorkbench } from "@/app/modules/diff/useDiffWorkbench";
 import { ExtractModule } from "@/app/modules/extract/ExtractModule";
+import { useExtractWorkbench } from "@/app/modules/extract/useExtractWorkbench";
 import { LatestModule } from "@/app/modules/latest/LatestModule";
+import { useLatestWorkbench } from "@/app/modules/latest/useLatestWorkbench";
+import { MergeModule } from "@/app/modules/merge/MergeModule";
+import { useMergeWorkbench } from "@/app/modules/merge/useMergeWorkbench";
 import { SearchModule } from "@/app/modules/search/SearchModule";
 import { useSearchWorkbench } from "@/app/modules/search/useSearchWorkbench";
-import { MergeModule } from "@/app/modules/merge/MergeModule";
-import {
-  isMergeSlot,
-  useMergeWorkbench,
-} from "@/app/modules/merge/useMergeWorkbench";
-import {
-  buildCollisionResult,
-  stripCollisionExportPrefix,
-} from "@/app/lib/collision";
-import {
-  buildDedupResult,
-  type BlockSize,
-  type DedupMode,
-} from "@/app/lib/dedup";
-import {
-  buildKeyedDiffResult,
-  buildUnkeyedDiffResult,
-  type DiffMapping,
-} from "@/app/lib/diff";
-import { buildExtractResult, type ExtractTemplateId } from "@/app/lib/extract";
-import { buildLatestResult } from "@/app/lib/latest";
-import { downloadExcel, getColumns, parseWorkbook } from "@/app/lib/workbook";
-
-const initialCollisionTables: CollisionTableState[] = [
-  { id: "collision-1", title: "基准表", workbook: null, field: "" },
-  { id: "collision-2", title: "参与表 A", workbook: null, field: "" },
-];
-
-function getCollisionTableTitle(index: number) {
-  if (index === 0) return "基准表";
-  return `参与表 ${String.fromCharCode(64 + index)}`;
-}
 
 export default function Home() {
   const [toolMode, setToolMode] = useState<ToolMode>("collision");
-  const [matchMode, setMatchMode] = useState<MatchMode>("complete");
-  const [collisionCaseSensitive, setCollisionCaseSensitive] = useState(false);
-  const [collisionTables, setCollisionTables] = useState<CollisionTableState[]>(
-    initialCollisionTables,
-  );
-  const [latestBook, setLatestBook] = useState<WorkbookState | null>(null);
-  const [latestBaseField, setLatestBaseField] = useState("");
-  const [latestTimeField, setLatestTimeField] = useState("");
-  const [extractBook, setExtractBook] = useState<WorkbookState | null>(null);
-  const [extractSourceFields, setExtractSourceFields] = useState<string[]>([]);
-  const [extractTemplates, setExtractTemplates] = useState<ExtractTemplateId[]>(
-    ["mobile"],
-  );
-  const [extractCustomPattern, setExtractCustomPattern] = useState("");
-  const [dedupBook, setDedupBook] = useState<WorkbookState | null>(null);
-  const [dedupFields, setDedupFields] = useState<string[]>([]);
-  const [dedupExactFields, setDedupExactFields] = useState<string[]>([]);
-  const [dedupAlgorithm, setDedupAlgorithm] =
-    useState<DedupMode>("levenshtein");
-  const [dedupThreshold, setDedupThreshold] = useState(0.75);
-  const [dedupBlockSize, setDedupBlockSize] = useState<BlockSize>("first-char");
-  const [dedupCaseSensitive, setDedupCaseSensitive] = useState(false);
-  const [diffMode, setDiffMode] = useState<DiffMode>("unkeyed");
-  const [diffOldBook, setDiffOldBook] = useState<WorkbookState | null>(null);
-  const [diffNewBook, setDiffNewBook] = useState<WorkbookState | null>(null);
-  const [diffMapping, setDiffMapping] = useState<DiffMapping>({
-    oldFields: [],
-    newFields: [],
-  });
-  const [diffCaseSensitive, setDiffCaseSensitive] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<TableSlot | null>(null);
   const [error, setError] = useState("");
-  const searchWorkbench = useSearchWorkbench({
-    exportFile: TOOL_DEFINITIONS.search.exportFile,
-    setError,
-    setLoadingSlot,
-  });
-  const mergeWorkbench = useMergeWorkbench({ setError, setLoadingSlot });
+  const context = { setError, setLoadingSlot };
 
-  const latestRows = latestBook?.sheets[latestBook.activeSheet] ?? [];
-  const latestColumns = useMemo(() => getColumns(latestRows), [latestRows]);
-  const extractRows = extractBook?.sheets[extractBook.activeSheet] ?? [];
-  const extractColumns = useMemo(() => getColumns(extractRows), [extractRows]);
-  const dedupRows = dedupBook?.sheets[dedupBook.activeSheet] ?? [];
-  const dedupColumns = useMemo(() => getColumns(dedupRows), [dedupRows]);
-  const diffOldRows = diffOldBook?.sheets[diffOldBook.activeSheet] ?? [];
-  const diffNewRows = diffNewBook?.sheets[diffNewBook.activeSheet] ?? [];
-  const diffOldColumns = useMemo(() => getColumns(diffOldRows), [diffOldRows]);
-  const diffNewColumns = useMemo(() => getColumns(diffNewRows), [diffNewRows]);
-  const collisionRuntimeTables = useMemo(
-    () =>
-      collisionTables.map((table) => {
-        const rows = table.workbook?.sheets[table.workbook.activeSheet] ?? [];
-        return {
-          ...table,
-          rows,
-          columns: getColumns(rows),
-        };
-      }),
-    [collisionTables],
-  );
-
-  const collisionResult = useMemo(
-    () =>
-      buildCollisionResult({
-        matchMode,
-        tables: collisionRuntimeTables,
-        caseSensitive: collisionCaseSensitive,
-      }),
-    [matchMode, collisionRuntimeTables, collisionCaseSensitive],
-  );
-
-  const latestResult = useMemo(
-    () =>
-      buildLatestResult({
-        rows: latestRows,
-        columns: latestColumns,
-        baseField: latestBaseField,
-        timeField: latestTimeField,
-      }),
-    [latestBaseField, latestColumns, latestRows, latestTimeField],
-  );
-  const extractResult = useMemo(
-    () =>
-      buildExtractResult({
-        rows: extractRows,
-        columns: extractColumns,
-        sourceFields: extractSourceFields,
-        templates: extractTemplates,
-        customPattern: extractCustomPattern,
-      }),
-    [
-      extractColumns,
-      extractCustomPattern,
-      extractRows,
-      extractSourceFields,
-      extractTemplates,
-    ],
-  );
-  const dedupResult = useMemo(
-    () =>
-      buildDedupResult({
-        rows: dedupRows,
-        columns: dedupColumns,
-        fields: dedupFields,
-        exactFields: dedupExactFields,
-        algorithm: dedupAlgorithm,
-        threshold: dedupThreshold,
-        blockSize: dedupBlockSize,
-        caseSensitive: dedupCaseSensitive,
-      }),
-    [
-      dedupRows,
-      dedupColumns,
-      dedupFields,
-      dedupExactFields,
-      dedupAlgorithm,
-      dedupThreshold,
-      dedupBlockSize,
-      dedupCaseSensitive,
-    ],
-  );
-  const diffResult = useMemo(() => {
-    if (diffMode === "keyed") {
-      return buildKeyedDiffResult({
-        oldRows: diffOldRows,
-        oldColumns: diffOldColumns,
-        newRows: diffNewRows,
-        newColumns: diffNewColumns,
-        mapping: diffMapping,
-        caseSensitive: diffCaseSensitive,
-      });
-    }
-
-    return buildUnkeyedDiffResult({
-      oldRows: diffOldRows,
-      oldColumns: diffOldColumns,
-      newRows: diffNewRows,
-      newColumns: diffNewColumns,
-      caseSensitive: diffCaseSensitive,
-    });
-  }, [
-    diffMode,
-    diffOldRows,
-    diffOldColumns,
-    diffNewRows,
-    diffNewColumns,
-    diffMapping,
-    diffCaseSensitive,
-  ]);
+  const collision = useCollisionWorkbench(context);
+  const merge = useMergeWorkbench(context);
+  const extract = useExtractWorkbench(context);
+  const dedup = useDedupWorkbench(context);
+  const diff = useDiffWorkbench(context);
+  const search = useSearchWorkbench(context);
+  const latest = useLatestWorkbench(context);
   const activeTool = TOOL_DEFINITIONS[toolMode];
-  const activeRows =
-    toolMode === "collision"
-      ? collisionResult.rows
-      : toolMode === "latest"
-        ? latestResult.rows
-        : toolMode === "dedup"
-          ? dedupResult.rows
-          : toolMode === "diff"
-            ? diffResult.rows
-            : toolMode === "search"
-              ? searchWorkbench.result.rows
-              : toolMode === "merge"
-                ? mergeWorkbench.result.rows
-                : extractResult.rows;
-  const activeColumns =
-    toolMode === "collision"
-      ? collisionResult.columns
-      : toolMode === "latest"
-        ? latestResult.columns
-        : toolMode === "dedup"
-          ? dedupResult.columns
-          : toolMode === "diff"
-            ? diffResult.columns
-            : toolMode === "search"
-              ? searchWorkbench.result.columns
-              : toolMode === "merge"
-                ? mergeWorkbench.result.columns
-                : extractResult.columns;
 
-  async function handleFile(slot: TableSlot, file?: File) {
-    if (!file) return;
-
-    setError("");
-    setLoadingSlot(slot);
-
-    try {
-      const workbook = await parseWorkbook(file);
-
-      if (slot === "latest") {
-        setLatestBook(workbook);
-        setLatestBaseField("");
-        setLatestTimeField("");
-      } else if (slot === "extract") {
-        setExtractBook(workbook);
-        setExtractSourceFields([]);
-      } else if (slot === "dedup") {
-        setDedupBook(workbook);
-        setDedupFields([]);
-        setDedupExactFields([]);
-      } else if (slot === "diff-old") {
-        setDiffOldBook(workbook);
-        setDiffMapping({ oldFields: [], newFields: [] });
-      } else if (slot === "diff-new") {
-        setDiffNewBook(workbook);
-        setDiffMapping((mapping) => ({ ...mapping, newFields: [] }));
-      } else if (slot === "merge-base" || isMergeSlot(slot)) {
-        await mergeWorkbench.handleFile(slot, file);
-      } else {
-        setCollisionTables((tables) =>
-          tables.map((table) =>
-            table.id === slot ? { ...table, workbook, field: "" } : table,
-          ),
-        );
-      }
-    } catch {
-      setError("文件解析失败，请上传 .xlsx / .csv 文件。");
-    } finally {
-      setLoadingSlot(null);
-    }
-  }
-
-  function updateSheet(slot: TableSlot, sheet: string) {
-    if (slot === "latest" && latestBook) {
-      setLatestBook({ ...latestBook, activeSheet: sheet });
-      setLatestBaseField("");
-      setLatestTimeField("");
-      return;
-    }
-
-    if (slot === "extract" && extractBook) {
-      setExtractBook({ ...extractBook, activeSheet: sheet });
-      setExtractSourceFields([]);
-      return;
-    }
-
-    if (slot === "dedup" && dedupBook) {
-      setDedupBook({ ...dedupBook, activeSheet: sheet });
-      setDedupFields([]);
-      setDedupExactFields([]);
-      return;
-    }
-
-    if (slot === "diff-old" && diffOldBook) {
-      setDiffOldBook({ ...diffOldBook, activeSheet: sheet });
-      setDiffMapping({ oldFields: [], newFields: [] });
-      return;
-    }
-
-    if (slot === "diff-new" && diffNewBook) {
-      setDiffNewBook({ ...diffNewBook, activeSheet: sheet });
-      setDiffMapping((mapping) => ({ ...mapping, newFields: [] }));
-      return;
-    }
-
-    if (slot === "merge-base") {
-      mergeWorkbench.updateSheet(slot, sheet);
-      return;
-    }
-
-    setCollisionTables((tables) =>
-      tables.map((table) =>
-        table.id === slot && table.workbook
-          ? {
-              ...table,
-              workbook: { ...table.workbook, activeSheet: sheet },
-              field: "",
-            }
-          : table,
-      ),
-    );
-  }
-
-  function updateCollisionField(slot: TableSlot, field: string) {
-    setCollisionTables((tables) =>
-      tables.map((table) => (table.id === slot ? { ...table, field } : table)),
-    );
-  }
-
-  function addCollisionTable() {
-    setCollisionTables((tables) => {
-      const nextIndex = tables.length + 1;
-      return [
-        ...tables,
-        {
-          id: `collision-${Date.now()}`,
-          title: getCollisionTableTitle(nextIndex - 1),
-          workbook: null,
-          field: "",
-        },
-      ];
-    });
-  }
-
-  function removeCollisionTable(slot: TableSlot) {
-    setCollisionTables((tables) => {
-      if (tables.length <= 2) return tables;
-      return tables
-        .filter((table) => table.id !== slot)
-        .map((table, index) => ({
-          ...table,
-          title: getCollisionTableTitle(index),
-        }));
-    });
-  }
-
-  async function handleExport() {
-    try {
-      if (toolMode === "search") {
-        await searchWorkbench.exportResult();
-        return;
-      }
-
-      await downloadExcel(
-        activeTool.exportFile,
-        activeTool.exportSheet,
-        activeColumns,
-        activeRows,
-        toolMode === "collision" ? stripCollisionExportPrefix : undefined,
-      );
-    } catch {
-      setError("导出失败，请重试。");
-    }
-  }
-
-  function toggleExtractTemplate(template: ExtractTemplateId) {
-    setExtractTemplates((templates) =>
-      templates.includes(template)
-        ? templates.filter((item) => item !== template)
-        : [...templates, template],
-    );
-  }
-
-  function toggleExtractSourceField(field: string) {
-    setExtractSourceFields((fields) =>
-      fields.includes(field)
-        ? fields.filter((item) => item !== field)
-        : [...fields, field],
-    );
-  }
-
-  function toggleDedupField(field: string) {
-    setDedupFields((fields) =>
-      fields.includes(field)
-        ? fields.filter((item) => item !== field)
-        : [...fields, field],
-    );
-  }
-
-  function toggleDedupExactField(field: string) {
-    setDedupExactFields((fields) =>
-      fields.includes(field)
-        ? fields.filter((item) => item !== field)
-        : [...fields, field],
-    );
+  function withExportError(run: () => Promise<void>) {
+    return () => {
+      run().catch(() => setError("导出失败，请重试。"));
+    };
   }
 
   return (
@@ -433,19 +63,19 @@ export default function Home() {
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
                 <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                   <ModeButton
-                    active={matchMode === "complete"}
-                    onClick={() => setMatchMode("complete")}
+                    active={collision.matchMode === "complete"}
+                    onClick={() => collision.setMatchMode("complete")}
                     title="补全基准表"
                   />
                   <ModeButton
-                    active={matchMode === "collision"}
-                    onClick={() => setMatchMode("collision")}
+                    active={collision.matchMode === "collision"}
+                    onClick={() => collision.setMatchMode("collision")}
                     title="只取交集"
                   />
                 </div>
                 <CaseSensitiveToggle
-                  checked={collisionCaseSensitive}
-                  onChange={setCollisionCaseSensitive}
+                  checked={collision.caseSensitive}
+                  onChange={collision.setCaseSensitive}
                 />
               </div>
             ) : toolMode === "extract" ? (
@@ -454,35 +84,35 @@ export default function Home() {
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
                 <ToolHint text="指定要素，全字段跨表检索" />
                 <CaseSensitiveToggle
-                  checked={searchWorkbench.caseSensitive}
-                  onChange={searchWorkbench.setCaseSensitive}
+                  checked={search.caseSensitive}
+                  onChange={search.setCaseSensitive}
                 />
               </div>
             ) : toolMode === "dedup" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
                 <ToolHint text="按相似度算法发现重复行" />
                 <CaseSensitiveToggle
-                  checked={dedupCaseSensitive}
-                  onChange={setDedupCaseSensitive}
+                  checked={dedup.caseSensitive}
+                  onChange={dedup.setCaseSensitive}
                 />
               </div>
             ) : toolMode === "diff" ? (
               <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_auto] md:items-center">
                 <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                   <ModeButton
-                    active={diffMode === "unkeyed"}
-                    onClick={() => setDiffMode("unkeyed")}
+                    active={diff.mode === "unkeyed"}
+                    onClick={() => diff.setMode("unkeyed")}
                     title="按内容比对"
                   />
                   <ModeButton
-                    active={diffMode === "keyed"}
-                    onClick={() => setDiffMode("keyed")}
+                    active={diff.mode === "keyed"}
+                    onClick={() => diff.setMode("keyed")}
                     title="按字段对齐"
                   />
                 </div>
                 <CaseSensitiveToggle
-                  checked={diffCaseSensitive}
-                  onChange={setDiffCaseSensitive}
+                  checked={diff.caseSensitive}
+                  onChange={diff.setCaseSensitive}
                 />
               </div>
             ) : toolMode === "merge" ? (
@@ -511,121 +141,136 @@ export default function Home() {
         <div key={toolMode} className="animate-rise flex flex-col gap-4">
         {toolMode === "collision" ? (
           <CollisionModule
-            tables={collisionRuntimeTables}
+            tables={collision.tables}
             loadingSlot={loadingSlot}
-            result={collisionResult}
-            matchMode={matchMode}
-            onFile={handleFile}
-            onSheet={updateSheet}
-            onField={updateCollisionField}
-            onAddTable={addCollisionTable}
-            onRemoveTable={removeCollisionTable}
-            onExport={handleExport}
+            result={collision.result}
+            computation={collision.computation}
+            matchMode={collision.matchMode}
+            onFile={collision.handleFile}
+            onSheet={collision.updateSheet}
+            onHeaderRow={collision.updateHeaderRow}
+            onField={collision.updateField}
+            onAddTable={collision.addTable}
+            onRemoveTable={collision.removeTable}
+            onExport={withExportError(collision.exportResult)}
           />
         ) : toolMode === "latest" ? (
           <LatestModule
-            workbook={latestBook}
-            columns={latestColumns}
-            sourceRowsCount={latestRows.length}
-            baseField={latestBaseField}
-            timeField={latestTimeField}
+            workbook={latest.book}
+            columns={latest.columns}
+            sourceRowsCount={latest.rows.length}
+            baseField={latest.baseField}
+            timeField={latest.timeField}
             loadingSlot={loadingSlot}
-            result={latestResult}
-            onFile={handleFile}
-            onSheet={updateSheet}
-            onBaseField={setLatestBaseField}
-            onTimeField={setLatestTimeField}
-            onExport={handleExport}
+            result={latest.result}
+            computation={latest.computation}
+            onFile={latest.loadFile}
+            onSheet={(_, sheet) => latest.selectSheet(sheet)}
+            onHeaderRow={(_, headerRow) => latest.setHeaderRow(headerRow)}
+            onBaseField={latest.setBaseField}
+            onTimeField={latest.setTimeField}
+            onExport={withExportError(latest.exportResult)}
           />
         ) : toolMode === "dedup" ? (
           <DedupModule
-            workbook={dedupBook}
-            columns={dedupColumns}
-            sourceRowsCount={dedupRows.length}
-            fields={dedupFields}
-            exactFields={dedupExactFields}
-            algorithm={dedupAlgorithm}
-            threshold={dedupThreshold}
-            blockSize={dedupBlockSize}
+            workbook={dedup.book}
+            columns={dedup.columns}
+            sourceRowsCount={dedup.rows.length}
+            fields={dedup.fields}
+            exactFields={dedup.exactFields}
+            algorithm={dedup.algorithm}
+            threshold={dedup.threshold}
+            blockSize={dedup.blockSize}
             loadingSlot={loadingSlot}
-            result={dedupResult}
-            onFile={handleFile}
-            onSheet={updateSheet}
-            onField={toggleDedupField}
-            onExactField={toggleDedupExactField}
-            onAlgorithm={setDedupAlgorithm}
-            onThreshold={setDedupThreshold}
-            onBlockSize={setDedupBlockSize}
-            onExport={handleExport}
+            result={dedup.result}
+            computation={dedup.computation}
+            onFile={dedup.loadFile}
+            onSheet={(_, sheet) => dedup.selectSheet(sheet)}
+            onHeaderRow={(_, headerRow) => dedup.setHeaderRow(headerRow)}
+            onField={dedup.toggleField}
+            onExactField={dedup.toggleExactField}
+            onAlgorithm={dedup.setAlgorithm}
+            onThreshold={dedup.setThreshold}
+            onBlockSize={dedup.setBlockSize}
+            onExportRecommended={withExportError(dedup.exportRecommended)}
+            onExportFull={withExportError(dedup.exportFull)}
           />
         ) : toolMode === "diff" ? (
           <DiffModule
-            oldBook={diffOldBook}
-            newBook={diffNewBook}
-            oldColumns={diffOldColumns}
-            newColumns={diffNewColumns}
-            mode={diffMode}
-            mapping={diffMapping}
+            oldBook={diff.oldSlot.book}
+            newBook={diff.newSlot.book}
+            oldColumns={diff.oldSlot.columns}
+            newColumns={diff.newSlot.columns}
+            mode={diff.mode}
+            mapping={diff.mapping}
             loadingSlot={loadingSlot}
-            result={diffResult}
-            caseSensitive={diffCaseSensitive}
-            onFile={handleFile}
-            onSheet={updateSheet}
-            onMappingChange={setDiffMapping}
-            onExport={handleExport}
+            result={diff.result}
+            computation={diff.computation}
+            caseSensitive={diff.caseSensitive}
+            onFile={diff.handleFile}
+            onSheet={diff.updateSheet}
+            onHeaderRow={diff.updateHeaderRow}
+            onMappingChange={diff.setMapping}
+            onExport={withExportError(diff.exportResult)}
           />
         ) : toolMode === "search" ? (
           <SearchModule
-            tables={searchWorkbench.tables}
-            query={searchWorkbench.query}
-            mode={searchWorkbench.mode}
+            tables={search.tables}
+            query={search.query}
+            mode={search.mode}
             loadingSlot={loadingSlot}
-            result={searchWorkbench.result}
-            caseSensitive={searchWorkbench.caseSensitive}
-            onQuery={searchWorkbench.setQuery}
-            onMode={searchWorkbench.setMode}
-            onFile={searchWorkbench.handleFile}
-            onSheet={searchWorkbench.toggleSheet}
-            onAddTable={searchWorkbench.addTable}
-            onRemoveTable={searchWorkbench.removeTable}
-            onExport={searchWorkbench.exportResult}
+            result={search.result}
+            computation={search.computation}
+            caseSensitive={search.caseSensitive}
+            onQuery={search.setQuery}
+            onMode={search.setMode}
+            onFile={search.handleFile}
+            onSheet={search.toggleSheet}
+            onHeaderRow={search.updateHeaderRow}
+            onAddTable={search.addTable}
+            onRemoveTable={search.removeTable}
+            onExport={withExportError(search.exportResult)}
           />
         ) : toolMode === "merge" ? (
           <MergeModule
-            baseBook={mergeWorkbench.baseBook}
-            tables={mergeWorkbench.tables}
-            baseColumns={mergeWorkbench.baseColumns}
-            fieldMapping={mergeWorkbench.fieldMapping}
-            deduplicate={mergeWorkbench.deduplicate}
+            baseBook={merge.baseBook}
+            tables={merge.tables}
+            baseColumns={merge.baseColumns}
+            fieldMapping={merge.fieldMapping}
+            deduplicate={merge.deduplicate}
             loadingSlot={loadingSlot}
-            result={mergeWorkbench.result}
-            isAddingFiles={mergeWorkbench.isAddingFiles}
-            onFile={handleFile}
-            onBaseSheet={(sheet) => mergeWorkbench.updateSheet("merge-base", sheet)}
-            onAddTable={mergeWorkbench.addTable}
-            onAddFiles={mergeWorkbench.addFiles}
-            onRemoveTable={mergeWorkbench.removeTable}
-            onFieldMapping={mergeWorkbench.updateFieldMapping}
-            onRemoveFieldMapping={mergeWorkbench.removeFieldMapping}
-            onDeduplicate={mergeWorkbench.setDeduplicate}
-            onExport={handleExport}
+            result={merge.result}
+            computation={merge.computation}
+            isAddingFiles={merge.isAddingFiles}
+            onFile={merge.handleFile}
+            onBaseSheet={(sheet) => merge.updateSheet("merge-base", sheet)}
+            onHeaderRow={merge.updateHeaderRow}
+            onAddTable={merge.addTable}
+            onAddFiles={merge.addFiles}
+            onRemoveTable={merge.removeTable}
+            onFieldMapping={merge.updateFieldMapping}
+            onRemoveFieldMapping={merge.removeFieldMapping}
+            onDeduplicate={merge.setDeduplicate}
+            onExport={withExportError(merge.exportResult)}
           />
         ) : (
           <ExtractModule
-            workbook={extractBook}
-            columns={extractColumns}
-            sourceRowsCount={extractRows.length}
-            sourceFields={extractSourceFields}
-            templates={extractTemplates}
-            customPattern={extractCustomPattern}
+            workbook={extract.book}
+            columns={extract.columns}
+            sourceRowsCount={extract.rows.length}
+            sourceFields={extract.sourceFields}
+            templates={extract.templates}
+            customPattern={extract.customPattern}
             loadingSlot={loadingSlot}
-            result={extractResult}
-            onFile={handleFile}
-            onSheet={updateSheet}
-            onSourceField={toggleExtractSourceField}
-            onTemplate={toggleExtractTemplate}
-            onCustomPattern={setExtractCustomPattern}
-            onExport={handleExport}
+            result={extract.result}
+            computation={extract.computation}
+            onFile={extract.loadFile}
+            onSheet={(_, sheet) => extract.selectSheet(sheet)}
+            onHeaderRow={(_, headerRow) => extract.setHeaderRow(headerRow)}
+            onSourceField={extract.toggleSourceField}
+            onTemplate={extract.toggleTemplate}
+            onCustomPattern={extract.setCustomPattern}
+            onExport={withExportError(extract.exportResult)}
           />
         )}
         </div>

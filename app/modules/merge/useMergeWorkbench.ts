@@ -7,8 +7,17 @@ import type {
   TableSlot,
   WorkbookState,
 } from "@/app/types";
-import { buildMergeResult } from "@/app/lib/merge";
-import { getColumns, parseWorkbook } from "@/app/lib/workbook";
+import { TOOL_DEFINITIONS } from "@/app/config/tools";
+import { useComputation } from "@/app/hooks/useComputation";
+import { loadWorkbookFile, type WorkbenchContext } from "@/app/hooks/useWorkbookSlot";
+import { EMPTY_MERGE_RESULT } from "@/app/lib/merge";
+import {
+  applyHeaderRow,
+  describeParseError,
+  downloadExcel,
+  getColumns,
+  parseWorkbook,
+} from "@/app/lib/workbook";
 
 const initialMergeTables: MergeTableState[] = [];
 
@@ -30,13 +39,8 @@ function isMergeTableSlot(slot: TableSlot): slot is `merge-${string}` {
   return slot.startsWith("merge-") && slot !== "merge-base";
 }
 
-export function useMergeWorkbench({
-  setError,
-  setLoadingSlot,
-}: {
-  setError: (error: string) => void;
-  setLoadingSlot: (slot: TableSlot | null) => void;
-}) {
+export function useMergeWorkbench(context: WorkbenchContext) {
+  const { setError } = context;
   const [baseBook, setBaseBook] = useState<WorkbookState | null>(null);
   const [mergeTables, setMergeTables] =
     useState<MergeTableState[]>(initialMergeTables);
@@ -77,48 +81,62 @@ export function useMergeWorkbench({
     [mergeTables],
   );
 
-  const result = useMemo(
-    () =>
-      buildMergeResult({
-        baseColumns,
-        baseRows,
-        baseSourceName,
-        tables: runtimeTables,
-        fieldMapping,
-        deduplicate,
-      }),
-    [baseColumns, baseRows, baseSourceName, runtimeTables, fieldMapping, deduplicate],
-  );
+  const input = useMemo(() => {
+    if (!baseBook) return null;
+    // 合并逻辑按 workbook.sheets 逐个工作表处理，不需要拼好的 rows 和原始二维数组
+    const tables = runtimeTables.map((table) => ({
+      ...table,
+      rows: [],
+      workbook: table.workbook ? { ...table.workbook, raw: {} } : null,
+    }));
+    return { baseColumns, baseRows, baseSourceName, tables, fieldMapping, deduplicate };
+  }, [baseBook, baseColumns, baseRows, baseSourceName, runtimeTables, fieldMapping, deduplicate]);
+  const computation = useComputation("merge", input, EMPTY_MERGE_RESULT, {
+    onError: setError,
+  });
+  const result = computation.result;
 
   async function handleFile(slot: TableSlot, file?: File) {
     if (!file || !isMergeSlot(slot)) return;
 
-    setError("");
-    setLoadingSlot(slot);
+    const workbook = await loadWorkbookFile(slot, file, context);
+    if (!workbook) return;
 
-    try {
-      const workbook = await parseWorkbook(file);
-
-      if (slot === "merge-base") {
-        setBaseBook(workbook);
-        return;
-      }
-
-      setMergeTables((currentTables) =>
-        currentTables.map((table) =>
-          table.id === slot ? { ...table, workbook } : table,
-        ),
-      );
-    } catch {
-      setError("文件解析失败，请上传 .xlsx / .csv 文件。");
-    } finally {
-      setLoadingSlot(null);
+    if (slot === "merge-base") {
+      setBaseBook(workbook);
+      return;
     }
+
+    setMergeTables((currentTables) =>
+      currentTables.map((table) =>
+        table.id === slot ? { ...table, workbook } : table,
+      ),
+    );
   }
 
   function updateSheet(slot: TableSlot, sheet: string) {
     if (slot !== "merge-base" || !baseBook) return;
     setBaseBook({ ...baseBook, activeSheet: sheet });
+  }
+
+  // 基准表只改当前工作表；参与表全部工作表都参与合并，表头行统一应用
+  function updateHeaderRow(slot: TableSlot, headerRow: number) {
+    if (slot === "merge-base") {
+      if (baseBook) setBaseBook(applyHeaderRow(baseBook, headerRow, [baseBook.activeSheet]));
+      return;
+    }
+    setMergeTables((currentTables) =>
+      currentTables.map((table) =>
+        table.id === slot && table.workbook
+          ? { ...table, workbook: applyHeaderRow(table.workbook, headerRow) }
+          : table,
+      ),
+    );
+  }
+
+  async function exportResult() {
+    const { exportFile, exportSheet } = TOOL_DEFINITIONS.merge;
+    await downloadExcel(exportFile, exportSheet, result.columns, result.rows);
   }
 
   function addTable() {
@@ -146,11 +164,11 @@ export function useMergeWorkbench({
     const workbooks: WorkbookState[] = [];
     const failedNames: string[] = [];
 
-    results.forEach((result, index) => {
-      if (result.status === "fulfilled") {
-        workbooks.push(result.value);
+    results.forEach((settled, index) => {
+      if (settled.status === "fulfilled") {
+        workbooks.push(settled.value);
       } else {
-        failedNames.push(fileArray[index].name);
+        failedNames.push(`${fileArray[index].name}（${describeParseError(settled.reason)}）`);
       }
     });
 
@@ -169,7 +187,7 @@ export function useMergeWorkbench({
     }
 
     if (failedNames.length > 0) {
-      setError(`${failedNames.join("、")} 解析失败，请检查格式。`);
+      setError(`${failedNames.join("、")} 解析失败。`);
     }
 
     setIsAddingFiles(false);
@@ -210,9 +228,12 @@ export function useMergeWorkbench({
     fieldMapping,
     deduplicate,
     result,
+    computation,
     setDeduplicate,
     handleFile,
     updateSheet,
+    updateHeaderRow,
+    exportResult,
     addTable,
     addFiles,
     removeTable,

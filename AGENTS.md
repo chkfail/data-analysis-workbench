@@ -6,8 +6,9 @@
 
 - 项目名：`data-analysis-workbench`
 - 产品名：`数据研判工具箱`
-- 技术栈：Next.js App Router、TypeScript、Tailwind CSS。
-- 核心依赖：`next`、`react`、`exceljs`、`lucide-react`。
+- 技术栈：Next.js App Router（静态导出）、TypeScript、Tailwind CSS、Electron 桌面端。
+- 核心依赖：`next`、`react`、`exceljs`、`lucide-react`；桌面端 `electron@22.3.27`；测试 `vitest`。
+- 唯一交付形态是 Windows 桌面应用（Electron），已不再提供 Docker / Web 服务部署。
 - 这是一个面向 Excel/CSV 的本地数据研判工具台，不是营销页。第一屏应直接呈现可操作工具。
 - 项目 icon 位于 `public/icon.svg`，同时作为 favicon 使用。
 - 推荐终端：`C:\Program Files\Git\bin\bash.exe`。当前 Codex Windows PowerShell 沙箱偶尔会启动失败，必要时使用受控提权执行本地命令。
@@ -26,27 +27,39 @@
 
 ## 代码结构
 
-- `app/page.tsx`：页面壳、全局导航、跨模块状态编排、通用导出入口。不要在这里堆大块 UI 或算法。
+- `app/page.tsx`：页面壳、全局导航、各模块 hook 接入和模块挂载。不要在这里放模块状态、大块 UI 或算法。
 - `app/config/tools.ts`：工具注册信息，包括导航标题、页面标题、导出文件名和默认 sheet 名。
 - `app/types.ts`：共享类型。
-- `app/lib/workbook.ts`：Excel/CSV 解析、字段工具、Excel 导出。
-- `app/lib/collision.ts`：多表碰撞业务计算。
-- `app/lib/merge.ts`：多表合并业务计算。
-- `app/lib/extract.ts`：智能提取业务计算。
-- `app/lib/dedup.ts`：模糊去重业务计算。
-- `app/lib/diff.ts`：差异对比业务计算。
-- `app/lib/search.ts`：跨表检索业务计算和多 sheet 导出。
-- `app/lib/latest.ts`：取最新行业务计算。
+- `app/lib/workbook.ts`：Excel/CSV 解析（编码识别、表头行识别）、字段工具、时间解析、Excel 导出（类型还原）。
+- `app/lib/collision.ts` / `merge.ts` / `extract.ts` / `dedup.ts` / `diff.ts` / `search.ts` / `latest.ts`：各工具业务计算，必须是纯函数，便于放进 Worker 和写单测。
+- `app/lib/compute.ts`：Worker 计算任务注册表。新增需要放进 Worker 的计算时在这里登记。
+- `app/lib/*.test.ts`：业务计算单测（Vitest）。
+- `app/workers/compute.worker.ts`：计算 Worker 入口。
+- `app/hooks/useComputation.ts`：在 Worker 中执行计算，带防抖、取消和过期结果丢弃。
+- `app/hooks/useWorkbookSlot.ts`：单表槽位（导入、切换工作表、修改表头行）和统一的文件解析错误处理。
 - `app/components`：通用 UI 组件。
-- `app/modules/<module>`：各工具模块 UI。复杂模块可以在模块目录内放自有 hook，例如 `app/modules/search/useSearchWorkbench.ts`。
+- `app/modules/<module>`：各工具模块 UI 和模块私有 hook，每个模块一个 `use<Module>Workbench.ts`，负责状态、计算接入和导出。
+- `electron/main.cjs`：Electron 主进程；`electron/build-icon.cjs`：图标生成。
 
 新增模块时：
 
 1. 在 `app/config/tools.ts` 注册工具。
 2. 在 `app/types.ts` 增加必要共享类型。
-3. 在 `app/lib/<module>.ts` 放业务计算。
-4. 在 `app/modules/<module>` 放模块 UI 和模块私有 hook。
-5. 在 `app/page.tsx` 只做状态接入和模块挂载。
+3. 在 `app/lib/<module>.ts` 放业务计算，并补 `app/lib/<module>.test.ts`。
+4. 在 `app/lib/compute.ts` 登记计算任务。
+5. 在 `app/modules/<module>` 放模块 UI 和 `use<Module>Workbench.ts`，通过 `useComputation` 调用计算。
+6. 在 `app/page.tsx` 只做 hook 接入和模块挂载。
+
+## 通用数据约定
+
+- 支持 `.xlsx`、`.csv`。`.xls` 不支持（`xlsx` 依赖已因安全问题移除），导入时提示用户另存为 `.xlsx`。
+- CSV 先按 UTF-8 严格解码，失败再按 GB18030（GBK 超集）解码；带 BOM 时按 BOM 解码。分隔符自动识别逗号、制表符、分号、竖线。
+- 解析时先保留原始二维数组（`WorkbookState.raw`），再按表头行生成数据行（`WorkbookState.sheets`）。
+- 表头行默认自动识别：只跳过开头不同值不超过 2 个的标题行、制表信息行；用户可在表卡片上手动改 `表头第 N 行`。多工作表都参与的表（检索表、合并参与表）修改表头行时应用到全部工作表。
+- 数据行保留表头的全部列和列顺序，空单元格为空字符串；全空行跳过。
+- xlsx 日期单元格读成 `2024-01-02` 或 `2024-01-02 10:05:00`（按 UTC 分量格式化，不受机器时区影响）。
+- 导出时还原类型：普通数字写成数字；11 位及以上整数（手机号、身份证、银行卡）和超过 15 位有效数字的值保留文本；`2024-01-02(…)` 写成 Excel 日期。导出都走 `writeWorksheet`，不要绕过它直接 `addRow`。
+- 所有结果计算放在 Worker 里，参数变化自动重算；计算中显示 `计算中` 和 `取消`，导出按钮禁用。传给 Worker 的输入只带需要的数据，不要传 `raw`。
 
 ## 业务约定
 
@@ -62,6 +75,7 @@
 - 前端结果表格必须保留 `基准表.`、`参与表 A.` 等列名前缀，用于区分同名字段。
 - Excel 导出时去掉表名前缀，但要允许重复表头。导出逻辑必须按二维数组列位置写入，不要用对象 key 方式生成 sheet，否则同名字段会互相覆盖。
 - 结果行需要按整行去重，类似 SQL 的 `DISTINCT *`，但界面不要展示 `DISTINCT *` 英文说明。
+- 碰撞字段重复会产生笛卡尔积。单次最多生成 `MAX_COLLISION_ROWS`（200,000）行，超出时截断，并在结果标题旁提示预计行数。
 
 ### 多表合并
 
@@ -89,7 +103,7 @@
 - `完全一致字段` 表示该字段内容必须完全相同，才允许被归到同一重复组。
 - 默认不区分大小写；顶部可勾选 `区分大小写`。
 - 相似度算法包括 `编辑距离` 和 `二元组`。
-- 分块粒度包括 `首字分块` 和 `首2字分块`。
+- 分块粒度包括 `首字分块`、`首2字分块` 和 `不分块`。`不分块` 能发现首字不同的重复（如 `张三丰`/`章三丰`），但耗时随行数平方增长。
 - `工作表`、`匹配字段`、`完全一致字段` 在数据表卡片内并排展示；工作表列宽应明显小于字段列。
 - 推荐导出应只导出去重后的推荐保留行和独立行；全量导出保留重复组标记。
 
@@ -100,6 +114,7 @@
   - `按内容比对`：无可靠主键时使用，优先匹配完全一致行，再把高度相似的剩余行配成修改。
   - `按字段对齐`：用户选择 1 个或多个字段作为对齐字段。
 - 默认不区分大小写；顶部可勾选 `区分大小写`。
+- 按内容比对的相似配对用倒排索引 + 前缀过滤召回候选，结果与逐行全量比较一致（有单测对拍），不要退回 O(n×m) 全量扫描。
 - 按字段对齐时，重复 key 不要丢弃后续行，应按出现顺序配对，并在 note 里提示 `对齐字段存在重复，已按出现顺序配对`。
 - 修改行的 `变更字段` 列使用 `字段名: 旧值 → 新值`，多个字段用 `；` 分隔。
 - 修改行展示新表数据；删除行展示旧表数据；新增行展示新表数据。
@@ -128,7 +143,8 @@ ROW_NUMBER() OVER (PARTITION BY 基准字段 ORDER BY 时间字段 DESC) = 1
 
 - 每个基准字段只保留时间最新的一条记录。
 - 空基准字段要忽略，并在结果指标里展示忽略数量。
-- 时间解析当前使用 `Date.parse`，并兼容基础 Excel 序列日期数字。
+- 时间解析见 `toTimestamp`：支持 Excel 序列日期、`2024-01-02` / `2024/1/2` / `2024.1.2`（可带时分秒）、`2024年1月2日 10时5分`、`20240102(103000)`，其余交给 `Date.parse`。
+- 时间非空但无法解析的行按最旧处理，并在结果指标里展示 `时间无法解析(按最旧)` 数量。
 - 未导入数据时不要让右侧出现大片空白；配置卡片和上传卡片应保持视觉平衡。
 
 ## UI 约定
@@ -150,68 +166,41 @@ ROW_NUMBER() OVER (PARTITION BY 基准字段 ORDER BY 时间字段 DESC) = 1
 
 ```sh
 npm install
-npm run dev
-npx tsc --noEmit
-```
-
-默认开发地址：
-
-```text
-http://localhost:3000
+npm run dev            # 浏览器调试 http://localhost:3000
+npm run electron:dev   # 用 Electron 窗口直连 dev server（需先跑 npm run dev）
+npm run typecheck      # tsc --noEmit
+npm test               # vitest 单测
 ```
 
 注意：
 
-- 改功能后优先运行 `npx tsc --noEmit`。
+- 改功能后至少运行 `npm run typecheck` 和 `npm test`；改业务计算要同步补单测。
 - 用户明确说不需要启动时，不要启动 dev server。
 - 当 `npm run dev` 正在运行时，尽量不要同时跑 `next build`，避免 `.next` 缓存互相影响。
 - 若页面样式突然丢失，优先检查 `_next/static/css/app/layout.css` 是否返回 500；必要时停止 dev server，删除 `.next` 后重启。
 - 本机 PowerShell 沙箱偶尔启动失败，必要时使用受控提权执行本地命令。
 
-## Docker 离线部署
-
-项目支持打包成离线 Docker 部署包，目标服务器无需 npm、无需联网。
-
-相关文件：
-
-- `Dockerfile`
-- `docker-compose.yml`
-- `deploy.sh`
-- `.dockerignore`
-
-常用命令：
-
-```sh
-sh deploy.sh pack
-sh deploy.sh start
-sh deploy.sh stop
-```
-
-约定：
-
-- Compose 文件使用 `version: "2"`，兼容老版本 `docker-compose`。
-- Next.js 使用 standalone 输出，Docker 镜像必须包含 `public/`，否则 `/icon.svg` 等静态资源会 404。
-- 默认端口为宿主机 `3000` 到容器 `3000`，可通过 `DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start` 覆盖。
-- 离线包名形如 `dist/data-analysis-workbench-offline-*.tar.gz`。
-
 ## Electron 桌面端打包
 
-项目支持打包为 Windows 桌面应用，目标是 Win7–Win11 全覆盖。
+项目以 Windows 桌面应用交付，目标是 Win7–Win11 全覆盖。
 
 技术决策：
 
-- 使用 `electron@22.3.27`（固定版本，不可升级）：这是最后一个支持 Windows 7/8/8.1 的 Electron 大版本（Chromium 108）。Electron 23+ 和 Tauri 2.12+ 均已放弃 Win7。
-- 该版本已停止安全更新，可接受的前提是：应用完全离线、不加载任何远程内容。不要在 `webPreferences` 里打开 `nodeIntegration`，不要 `loadURL` 任何远程地址。
-- 业务代码零改动：`next.config.mjs` 通过 `ELECTRON_BUILD=1` 切换为静态导出（`output: "export"` + `assetPrefix: "./"`），Docker 部署仍走 `standalone`，两条链路互不影响。
-- Electron 主进程在 `electron/main.cjs`（CommonJS，Electron 22 不支持 ESM 主进程），渲染端加载 `out/index.html`。
+- 使用 `electron@22.3.27`（固定版本，不可升级）：这是最后一个支持 Windows 7/8/8.1 的 Electron 大版本（Chromium 108）。Electron 23+ 和 Tauri 2.12+ 均已放弃 Win7。业务代码不要使用 Chromium 108 不支持的 API。
+- 该版本已停止安全更新，可接受的前提是：应用完全离线、不加载任何远程内容。主进程已做以下约束，不要放开：
+  - `nodeIntegration: false`、`contextIsolation: true`、`sandbox: true`；
+  - `webRequest` 拦截除 `app:` / `blob:` / `data:`（及开发模式 dev server）外的全部请求；
+  - 禁止 `will-navigate` 跳出本地包，`setWindowOpenHandler` 一律拒绝。
+- `next.config.mjs` 固定 `output: "export"`，`npm run build` 静态导出到 `out/`。
+- 渲染端通过自定义标准协议 `app://bundle/` 加载 `out/`（`protocol.registerFileProtocol`，Electron 22 还没有 `protocol.handle`）。不要改回 `file://`：`file://` 下 Web Worker 和绝对路径的 `/_next` 资源都会失效。
+- Electron 主进程在 `electron/main.cjs`（CommonJS，Electron 22 不支持 ESM 主进程）。
 - 打包配置在 `electron-builder.yml`，产物输出到 `dist/electron/`（已被 gitignore）。
 
 常用命令：
 
 ```sh
-npm run build:electron   # 静态导出到 out/
+npm run build            # 静态导出到 out/
 npm run electron:start   # 导出后用 Electron 打开
-npm run electron:dev     # 直连 http://localhost:3000（需先跑 npm run dev）
 npm run dist:electron    # 打出 NSIS 安装包 + 便携版到 dist/electron/
 ```
 
@@ -222,7 +211,7 @@ npm run dist:electron    # 打出 NSIS 安装包 + 便携版到 dist/electron/
 - 不要升级 electron 依赖，除非确认放弃 Win7 支持。
 - 打包脚本固定带 `CSC_IDENTITY_AUTO_DISCOVERY=false`（不做代码签名）。若机器未开开发者模式，electron-builder 解包 winCodeSign 缓存时会因无符号链接权限报错；解决方法是把 `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\<数字>` 下已解出的目录复制为同级的 `winCodeSign-2.6.0`。
 - 调试桌面端时若进程秒退且无报错，检查环境变量 `ELECTRON_RUN_AS_NODE` 是否被置为 1（某些终端环境会带上它），置空后重试。
-- 现场排障可设 `DAW_DEBUG_LOG=1`，主进程会在系统临时目录写 `daw-electron.log`。
+- 现场排障可设 `DAW_DEBUG_LOG=1`，主进程会在系统临时目录写 `daw-electron.log`（含被拦截的请求和找不到的资源）。
 
 ## 忽略与提交
 
@@ -230,10 +219,10 @@ npm run dist:electron    # 打出 NSIS 安装包 + 便携版到 dist/electron/
 
 - `node_modules`
 - `.next`
+- `out`
 - `dist`
-- `.deploy-pack`
 - `dev-server.log`
 - `tsconfig.tsbuildinfo`
 - 本地环境变量和包管理器 debug 日志
 
-提交前检查工作区，避免把离线部署包、构建缓存、依赖目录提交进仓库。
+提交前检查工作区，避免把安装包、构建缓存、依赖目录提交进仓库。

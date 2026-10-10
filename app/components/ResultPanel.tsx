@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Download, FileSpreadsheet, Search } from "lucide-react";
+import { Download, FileSpreadsheet, Loader2, Search, X } from "lucide-react";
 import type { MetricTuple, OutputRow } from "@/app/types";
 import { MetricChip } from "@/app/components/MetricChip";
 
@@ -19,6 +19,8 @@ export function ResultPanel({
   secondaryExport,
   renderCell,
   getRowClassName,
+  computation,
+  warning,
 }: {
   canShow: boolean;
   rows: OutputRow[];
@@ -33,7 +35,10 @@ export function ResultPanel({
   secondaryExport?: { label: string; onClick: () => void };
   renderCell: (row: OutputRow, column: string) => ReactNode;
   getRowClassName?: (row: OutputRow) => string;
+  computation?: { pending: boolean; cancelled: boolean; cancel: () => void };
+  warning?: string;
 }) {
+  const pending = Boolean(computation?.pending);
   const visibleMetricRows = metricRows ?? [metrics];
 
   return (
@@ -67,10 +72,16 @@ export function ResultPanel({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {computation ? <ComputationStatus computation={computation} /> : null}
           <div className="inline-flex h-9 items-center gap-2 rounded-full bg-paper px-3 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-line">
             <Search size={15} />
             预览 {MAX_PREVIEW_ROWS} 行
           </div>
+          {warning ? (
+            <div className="inline-flex h-9 items-center rounded-full bg-amber-50 px-3 text-xs font-bold text-amber-800 ring-1 ring-inset ring-amber-200">
+              {warning}
+            </div>
+          ) : null}
           {note ? (
             <div className="inline-flex h-9 items-center rounded-full bg-field-soft px-3 text-xs font-bold text-field ring-1 ring-inset ring-field/15">
               {note}
@@ -79,7 +90,7 @@ export function ResultPanel({
           <button
             className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-field px-4 text-xs font-bold text-white shadow-lg shadow-field/30 transition hover:bg-field-deep disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             type="button"
-            disabled={rows.length === 0}
+            disabled={rows.length === 0 || pending}
             onClick={onExport}
             title="导出结果"
           >
@@ -90,7 +101,7 @@ export function ResultPanel({
             <button
               className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition hover:border-field/40 hover:bg-field-soft hover:text-field disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-white disabled:text-slate-300 disabled:shadow-none"
               type="button"
-              disabled={rows.length === 0}
+              disabled={rows.length === 0 || pending}
               onClick={secondaryExport.onClick}
               title={secondaryExport.label}
             >
@@ -102,7 +113,7 @@ export function ResultPanel({
       </div>
 
       {canShow && rows.length > 0 ? (
-        <div className="max-h-[560px] overflow-auto">
+        <div className={`max-h-[560px] overflow-auto transition-opacity ${pending ? "opacity-50" : ""}`}>
           <table className="min-w-[960px] border-collapse text-left text-sm">
             <thead>
               <tr>
@@ -149,3 +160,37 @@ export function ResultPanel({
   );
 }
 
+
+export function ComputationStatus({
+  computation,
+}: {
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
+}) {
+  if (computation.pending) {
+    return (
+      <div className="inline-flex h-9 items-center gap-2 rounded-full bg-sky-50 pl-3 pr-1 text-xs font-bold text-sky-700 ring-1 ring-inset ring-sky-200">
+        <Loader2 size={15} className="animate-spin" />
+        计算中
+        <button
+          className="inline-flex h-7 items-center gap-1 rounded-full bg-white px-2.5 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-200 transition hover:text-rose-600"
+          type="button"
+          onClick={computation.cancel}
+          title="取消本次计算"
+        >
+          <X size={13} />
+          取消
+        </button>
+      </div>
+    );
+  }
+
+  if (computation.cancelled) {
+    return (
+      <div className="inline-flex h-9 items-center rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500 ring-1 ring-inset ring-slate-200">
+        已取消，调整条件后重新计算
+      </div>
+    );
+  }
+
+  return null;
+}

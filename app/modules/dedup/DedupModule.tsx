@@ -4,8 +4,7 @@ import type {
   TableSlot,
   WorkbookState,
 } from "@/app/types";
-import type { BlockSize, DedupMode } from "@/app/lib/dedup";
-import { downloadExcel } from "@/app/lib/workbook";
+import type { BlockSize, DedupMode, DedupResult } from "@/app/lib/dedup";
 import { ResultPanel, MAX_PREVIEW_ROWS } from "@/app/components/ResultPanel";
 import { TableCard } from "@/app/components/TableCard";
 
@@ -22,12 +21,15 @@ export function DedupModule({
   result,
   onFile,
   onSheet,
+  onHeaderRow,
   onField,
   onExactField,
   onAlgorithm,
   onThreshold,
   onBlockSize,
-  onExport,
+  onExportRecommended,
+  onExportFull,
+  computation,
 }: {
   workbook: WorkbookState | null;
   columns: string[];
@@ -38,54 +40,23 @@ export function DedupModule({
   threshold: number;
   blockSize: BlockSize;
   loadingSlot: TableSlot | null;
-  result: {
-    rows: OutputRow[];
-    columns: string[];
-    clusterCount: number;
-    involvedCount: number;
-    recommendedCount: number;
-    sourceCount: number;
-  };
+  result: DedupResult;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onField: (field: string) => void;
   onExactField: (field: string) => void;
   onAlgorithm: (algorithm: DedupMode) => void;
   onThreshold: (threshold: number) => void;
   onBlockSize: (blockSize: BlockSize) => void;
-  onExport: () => void;
+  onExportRecommended: () => void;
+  onExportFull: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canDedup = Boolean(
     workbook && fields.length > 0 && result.columns.length > 0,
   );
   const thresholdPercent = Math.round(threshold * 100);
-
-  // 推荐导出：去重后的行 + 独立行，去掉标记列
-  const exportColumns =
-    columns.length > 0
-      ? columns
-      : result.columns.filter((c) => c !== "重复组" && c !== "推荐保留");
-  const recommendedRows = result.rows.filter(
-    (row) => row.data["推荐保留"] === "★ 推荐保留" || !row.data["重复组"],
-  );
-
-  function handleExportRecommended() {
-    downloadExcel(
-      "模糊去重结果_推荐.xlsx",
-      "去重结果",
-      exportColumns,
-      recommendedRows,
-    );
-  }
-
-  function handleExportFull() {
-    downloadExcel(
-      "模糊去重结果_全量.xlsx",
-      "去重结果",
-      result.columns,
-      result.rows,
-    );
-  }
 
   const metrics: MetricTuple[] = [
     ["原始行数", sourceRowsCount, "行"],
@@ -112,6 +83,7 @@ export function DedupModule({
           sheetAsChips
           onFile={onFile}
           onSheet={onSheet}
+          onHeaderRow={onHeaderRow}
           controls={
             workbook ? (
               <>
@@ -154,7 +126,7 @@ export function DedupModule({
 
             <div>
               <p className="text-xs font-bold tracking-wide text-field">分块粒度</p>
-              <div className="mt-3 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
+              <div className="mt-3 grid grid-cols-3 rounded-2xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200/70">
                 <BlockButton
                   active={blockSize === "first-char"}
                   onClick={() => onBlockSize("first-char")}
@@ -166,6 +138,12 @@ export function DedupModule({
                   onClick={() => onBlockSize("first-2-chars")}
                   title="首2字分块"
                   desc="更精确"
+                />
+                <BlockButton
+                  active={blockSize === "none"}
+                  onClick={() => onBlockSize("none")}
+                  title="不分块"
+                  desc="最全，数据多时慢"
                 />
               </div>
             </div>
@@ -211,12 +189,13 @@ export function DedupModule({
             ? `去重后可保留 ${result.recommendedCount} 组 + ${result.sourceCount - result.involvedCount} 条独立行${exactFields.length > 0 ? "；已应用完全一致约束" : ""}`
             : undefined
         }
-        onExport={handleExportRecommended}
+        onExport={onExportRecommended}
         exportLabel="导出推荐"
         secondaryExport={{
           label: "导出全量(含标记)",
-          onClick: handleExportFull,
+          onClick: onExportFull,
         }}
+        computation={computation}
         getRowClassName={(row) => {
           const status = row.data["推荐保留"];
           const group = row.data["重复组"];

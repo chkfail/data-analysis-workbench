@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Hash, Loader2, Upload } from "lucide-react";
 import type { TableSlot, WorkbookState } from "@/app/types";
 import { FieldSelect } from "@/app/components/FieldSelect";
+import { HeaderRowControl } from "@/app/components/HeaderRowControl";
+import { ACCEPTED_FILE_TYPES, getSheetRowLimit } from "@/app/lib/workbook";
 import { getTableTone, TableTitleChip, type TableTone } from "@/app/components/TableTitleChip";
 
 export function TableCard({
@@ -17,6 +19,7 @@ export function TableCard({
   sheetAsChips,
   onFile,
   onSheet,
+  onHeaderRow,
 }: {
   slot: TableSlot;
   title: string;
@@ -30,6 +33,7 @@ export function TableCard({
   sheetAsChips?: boolean;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow?: (slot: TableSlot, headerRow: number) => void;
 }) {
   const rowCount = workbook
     ? (workbook.sheets[workbook.activeSheet]?.length ?? 0)
@@ -46,10 +50,17 @@ export function TableCard({
             {workbook?.name ?? "未导入"}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
             {rowCount.toLocaleString("zh-CN")} 行
           </span>
+          {workbook && onHeaderRow ? (
+            <HeaderRowControl
+              value={workbook.headerRows[workbook.activeSheet] ?? 1}
+              max={getSheetRowLimit(workbook, workbook.activeSheet)}
+              onChange={(headerRow) => onHeaderRow(slot, headerRow)}
+            />
+          ) : null}
           {workbook ? <FileInput compact slot={slot} tone={tone} onFile={onFile} /> : null}
           {headerAction}
         </div>
@@ -66,7 +77,7 @@ export function TableCard({
             <span>{loading ? "解析中" : "导入表格"}</span>
             <input
               className="sr-only"
-              accept=".xlsx,.csv"
+              accept={ACCEPTED_FILE_TYPES}
               type="file"
               onChange={(event) => onFile(slot, event.target.files?.[0])}
             />
@@ -160,7 +171,7 @@ function FileInput({
       {compact ? "更换" : "导入"}
       <input
         className="sr-only"
-        accept=".xlsx,.csv"
+        accept={ACCEPTED_FILE_TYPES}
         type="file"
         onChange={(event) => onFile(slot, event.target.files?.[0])}
       />

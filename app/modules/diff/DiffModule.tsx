@@ -21,8 +21,10 @@ export function DiffModule({
   caseSensitive,
   onFile,
   onSheet,
+  onHeaderRow,
   onMappingChange,
   onExport,
+  computation,
 }: {
   oldBook: WorkbookState | null;
   newBook: WorkbookState | null;
@@ -35,8 +37,10 @@ export function DiffModule({
   caseSensitive: boolean;
   onFile: (slot: TableSlot, file?: File) => void;
   onSheet: (slot: TableSlot, sheet: string) => void;
+  onHeaderRow: (slot: TableSlot, headerRow: number) => void;
   onMappingChange: (mapping: DiffMapping) => void;
   onExport: () => void;
+  computation: { pending: boolean; cancelled: boolean; cancel: () => void };
 }) {
   const canDiff = Boolean(
     oldBook &&
@@ -83,6 +87,7 @@ export function DiffModule({
           }
           onFile={onFile}
           onSheet={onSheet}
+          onHeaderRow={onHeaderRow}
         />
         <TableCard
           slot="diff-new"
@@ -112,6 +117,7 @@ export function DiffModule({
           }
           onFile={onFile}
           onSheet={onSheet}
+          onHeaderRow={onHeaderRow}
         />
       </section>
 
@@ -143,6 +149,7 @@ export function DiffModule({
         ]
           .filter(Boolean)
           .join("；")}
+        computation={computation}
         onExport={onExport}
         getRowClassName={(row) => {
           const status = (row as DiffRow).diffStatus;
