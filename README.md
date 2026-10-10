@@ -2,6 +2,17 @@
 
 面向 Excel/CSV 的本地数据研判桌面工具（Windows 7–11）。项目提供多表碰撞、多表合并、智能提取、模糊去重、差异对比、跨表检索和取最新行等常用数据处理工具，所有计算在本机完成、完全离线，适合快速完成线索核查、表格比对和结果导出。
 
+## 下载
+
+前往 [Releases](https://github.com/chkfail/data-analysis-workbench/releases/latest) 下载最新版本（Windows 7–11，x64）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `data-analysis-workbench-Setup-<版本>-x64.exe` | 安装版，可选安装目录，创建桌面快捷方式 |
+| `data-analysis-workbench-portable-<版本>-x64.exe` | 便携版，免安装，双击即用 |
+
+安装包未做代码签名，首次运行若出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## 功能
 
 | 工具 | 用途 | 导出 |
