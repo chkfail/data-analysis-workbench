@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "build:electron": "cross-env ELECTRON_BUILD=1 next build",
+    "icon:gen": "electron electron/build-icon.cjs",
     "electron:dev": "cross-env ELECTRON_START_URL=http://localhost:3000 electron .",
     "electron:start": "npm run build:electron && electron .",
     "dist:electron": "npm run build:electron && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"

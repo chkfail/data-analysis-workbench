@@ -218,7 +218,7 @@ npm run dist:electron    # 打出 NSIS 安装包 + 便携版到 dist/electron/
 注意：
 
 - 默认只打 x64；如需覆盖 32 位 Win7 老机器，在 `electron-builder.yml` 的 `arch` 里加 `ia32`。
-- 未配置应用图标时使用 Electron 默认图标；要换图标需准备 256x256 的 `icon.ico` 放到 `build/` 目录。
+- 应用图标由 `npm run icon:gen` 从 `public/icon.svg` 生成到 `build/icon.ico`（用 Electron 离屏渲染，无需额外装图像工具）；`icon.svg` 变更后重新执行该命令即可。
 - 不要升级 electron 依赖，除非确认放弃 Win7 支持。
 - 打包脚本固定带 `CSC_IDENTITY_AUTO_DISCOVERY=false`（不做代码签名）。若机器未开开发者模式，electron-builder 解包 winCodeSign 缓存时会因无符号链接权限报错；解决方法是把 `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\<数字>` 下已解出的目录复制为同级的 `winCodeSign-2.6.0`。
 - 调试桌面端时若进程秒退且无报错，检查环境变量 `ELECTRON_RUN_AS_NODE` 是否被置为 1（某些终端环境会带上它），置空后重试。
