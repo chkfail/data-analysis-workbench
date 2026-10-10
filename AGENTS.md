@@ -194,6 +194,36 @@ sh deploy.sh stop
 - 默认端口为宿主机 `3000` 到容器 `3000`，可通过 `DATA_ANALYSIS_WORKBENCH_PORT=8080 sh deploy.sh start` 覆盖。
 - 离线包名形如 `dist/data-analysis-workbench-offline-*.tar.gz`。
 
+## Electron 桌面端打包
+
+项目支持打包为 Windows 桌面应用，目标是 Win7–Win11 全覆盖。
+
+技术决策：
+
+- 使用 `electron@22.3.27`（固定版本，不可升级）：这是最后一个支持 Windows 7/8/8.1 的 Electron 大版本（Chromium 108）。Electron 23+ 和 Tauri 2.12+ 均已放弃 Win7。
+- 该版本已停止安全更新，可接受的前提是：应用完全离线、不加载任何远程内容。不要在 `webPreferences` 里打开 `nodeIntegration`，不要 `loadURL` 任何远程地址。
+- 业务代码零改动：`next.config.mjs` 通过 `ELECTRON_BUILD=1` 切换为静态导出（`output: "export"` + `assetPrefix: "./"`），Docker 部署仍走 `standalone`，两条链路互不影响。
+- Electron 主进程在 `electron/main.cjs`（CommonJS，Electron 22 不支持 ESM 主进程），渲染端加载 `out/index.html`。
+- 打包配置在 `electron-builder.yml`，产物输出到 `dist/electron/`（已被 gitignore）。
+
+常用命令：
+
+```sh
+npm run build:electron   # 静态导出到 out/
+npm run electron:start   # 导出后用 Electron 打开
+npm run electron:dev     # 直连 http://localhost:3000（需先跑 npm run dev）
+npm run dist:electron    # 打出 NSIS 安装包 + 便携版到 dist/electron/
+```
+
+注意：
+
+- 默认只打 x64；如需覆盖 32 位 Win7 老机器，在 `electron-builder.yml` 的 `arch` 里加 `ia32`。
+- 未配置应用图标时使用 Electron 默认图标；要换图标需准备 256x256 的 `icon.ico` 放到 `build/` 目录。
+- 不要升级 electron 依赖，除非确认放弃 Win7 支持。
+- 打包脚本固定带 `CSC_IDENTITY_AUTO_DISCOVERY=false`（不做代码签名）。若机器未开开发者模式，electron-builder 解包 winCodeSign 缓存时会因无符号链接权限报错；解决方法是把 `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\<数字>` 下已解出的目录复制为同级的 `winCodeSign-2.6.0`。
+- 调试桌面端时若进程秒退且无报错，检查环境变量 `ELECTRON_RUN_AS_NODE` 是否被置为 1（某些终端环境会带上它），置空后重试。
+- 现场排障可设 `DAW_DEBUG_LOG=1`，主进程会在系统临时目录写 `daw-electron.log`。
+
 ## 忽略与提交
 
 不要提交以下内容：

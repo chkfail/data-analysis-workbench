@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-mono: "Cascadia Mono", "JetBrains Mono", Consolas, ui-monospace,
+    "SFMono-Regular", monospace;
+}
+
 html {
   min-height: 100%;
 }

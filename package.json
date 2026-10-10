@@ -3,11 +3,16 @@
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:electron": "cross-env ELECTRON_BUILD=1 next build",
+    "electron:dev": "cross-env ELECTRON_START_URL=http://localhost:3000 electron .",
+    "electron:start": "npm run build:electron && electron .",
+    "dist:electron": "npm run build:electron && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
@@ -24,6 +29,9 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
+    "electron": "22.3.27",
+    "electron-builder": "^24.13.3",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.5",
     "postcss": "^8.4.49",

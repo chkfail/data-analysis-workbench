@@ -6,7 +6,7 @@ export function AppHeader({ activeTool, onToolChange }: { activeTool: ToolMode; 
     <header className="sticky top-0 z-30 border-b border-field/10 bg-field-soft/80 text-ink shadow-sm shadow-field/10 backdrop-blur supports-[backdrop-filter]:bg-field-soft/80">
       <div className="mx-auto grid max-w-7xl gap-3 px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:px-6 lg:px-8">
         <div className="inline-flex items-center gap-2.5 text-base font-black tracking-wide text-field-deep">
-          <img className="h-7 w-7 rounded-lg ring-1 ring-field/15" src="/icon.svg" alt="" />
+          <img className="h-7 w-7 rounded-lg ring-1 ring-field/15" src="icon.svg" alt="" />
           数据研判工具箱
         </div>
         <nav
